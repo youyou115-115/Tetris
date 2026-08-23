@@ -62,6 +62,7 @@
         </div>
 
         <canvas id="tetris"></canvas>
+
         <div id="combo-popup">COMBO!!</div>
 
         <div id="title-screen" class="overlay">
@@ -265,21 +266,17 @@
     }
 
     function collide(arena, player) {
-    const [m, o] = [player.matrix, player.pos];
-    for (let y = 0; y < m.length; ++y) {
-        for (let x = 0; x < m[y].length; ++x) {
-            if (m[y][x] !== 0) {
-                const ty = y + o.y;
-                const tx = x + o.x;
-                // 盤面の範囲外、または盤面のブロックと重なっている場合
-                if (ty >= ROW || ty < 0 || tx >= COL || tx < 0 || (arena[ty] !== undefined && arena[ty][tx] !== 0)) {
-                    return true;
+        const [m, o] = [player.matrix, player.pos];
+        for (let y = 0; y < m.length; ++y) {
+            for (let x = 0; x < m[y].length; ++x) {
+                if (m[y][x] !== 0) {
+                    const ty = y + o.y; const tx = x + o.x;
+                    if (ty >= ROW || ty < 0 || tx >= COL || tx < 0 || (arena[ty] && arena[ty][tx] !== 0)) return true;
                 }
             }
         }
+        return false;
     }
-    return false;
-}
 
     function merge(arena, player) {
         player.matrix.forEach((row, y) => {
@@ -331,21 +328,19 @@
     }
 
     function playerDrop() {
-    player.pos.y++;
-    if (collide(arena, player)) {
-        player.pos.y--;
-        merge(arena, player);
-        arenaSweep();
-        
-        // ライン消去後、一番上にブロックが残っているか判定
-        if (arena[0].some(val => val !== 0)) {
-            gameOver();
-        } else {
-            playerReset();
+        player.pos.y++;
+        if (collide(arena, player)) {
+            player.pos.y--;
+            merge(arena, player);
+            arenaSweep();
+            if (arena[0].some(val => val !== 0)) {
+                gameOver();
+            } else {
+                playerReset();
+            }
         }
+        dropCounter = 0;
     }
-    dropCounter = 0;
-}
 
     function playerMove(dir) {
         player.pos.x += dir;
@@ -357,56 +352,39 @@
     }
 
     function playerRotate() {
-    const oldMatrix = player.matrix;
-    player.matrix = player.matrix[0].map((_, i) => player.matrix.map(row => row[i]).reverse());
-    
-    // 回転した結果、壁にめり込むか、ブロックに「めり込む」ならキャンセル
-    if (collide(arena, player)) {
-        player.matrix = oldMatrix;
-    } else {
-        audio.playRotate();
+        const oldMatrix = player.matrix;
+        player.matrix = player.matrix[0].map((_, i) => player.matrix.map(row => row[i]).reverse());
+        if (collide(arena, player)) {
+            player.matrix = oldMatrix;
+        } else {
+            audio.playRotate();
+        }
     }
-}
 
     function playerReset() {
-    const pieces = 'ILJOTSZ';
-    if (!player.next) player.next = createPiece(pieces[pieces.length * Math.random() | 0]);
-    player.matrix = player.next;
-    player.next = createPiece(pieces[pieces.length * Math.random() | 0]);
-    
-    // ミノの初期位置を中央に設定
-    player.pos.y = 0;
-    player.pos.x = Math.floor(COL / 2) - Math.floor(player.matrix[0].length / 2);
-    
-    drawNext();
+        const pieces = 'ILJOTSZ';
+        if (!player.next) player.next = createPiece(pieces[pieces.length * Math.random() | 0]);
+        player.matrix = player.next;
+        player.next = createPiece(pieces[pieces.length * Math.random() | 0]);
+        player.pos.y = 0;
+        player.pos.x = Math.floor(COL / 2) - Math.floor(player.matrix[0].length / 2);
+        drawNext();
 
-    // 【重要】生成されたミノのパーツが、既存のブロックと「完全に重なっているか」を厳密にチェック
-    // これにより、画像のような「生成直後の重なりによる誤判定」を完全に防ぎます
-    for (let y = 0; y < player.matrix.length; y++) {
-        for (let x = 0; x < player.matrix[y].length; x++) {
-            if (player.matrix[y][x] !== 0) {
-                const targetY = player.pos.y + y;
-                const targetX = player.pos.x + x;
-                
-                // 盤面内かつ、その場所に既にブロックがある場合のみゲームオーバー
-                if (targetY >= 0 && targetY < ROW && arena[targetY] && arena[targetY][targetX] !== 0) {
-                    gameOver();
-                    return;
+        // 生成時の衝突判定を厳密化
+        for (let y = 0; y < player.matrix.length; y++) {
+            for (let x = 0; x < player.matrix[y].length; x++) {
+                if (player.matrix[y][x] !== 0) {
+                    const ty = player.pos.y + y;
+                    const tx = player.pos.x + x;
+                    if (ty >= 0 && ty < ROW && arena[ty] && arena[ty][tx] !== 0) {
+                        gameOver();
+                        return;
+                    }
                 }
             }
         }
+        if (collide(arena, player)) gameOver();
     }
-
-    // 天井にめり込んでいる場合もチェック
-    for (let y = 0; y < player.matrix.length; y++) {
-        for (let x = 0; x < player.matrix[y].length; x++) {
-            if (player.matrix[y][x] !== 0 && player.pos.y + y < 0) {
-                gameOver();
-                return;
-            }
-        }
-    }
-}
 
     function gameOver() {
         isGameOver = true;
@@ -453,43 +431,17 @@
         if (key === 'a') playerMove(-1);
         if (key === 'd') playerMove(1);
         if (key === 'w') playerRotate();
-        if (key === 's') {
-            player.pos.y++;
-            if (collide(arena, player)) {
-                player.pos.y--;
-                merge(arena, player);
-                if (arena[0].some(val => val !== 0)) { gameOver(); } 
-                else { playerReset(); arenaSweep(); }
-                audio.playHardDrop();
-            } else {
-                playerDrop();
-                audio.playDrop();
-            }
-            event.preventDefault();
-        }
-                if (key === ' ') {
-            // 1. まず、現在のミノが接地するまで一気に下へ移動させる
-            while (!collide(arena, player)) {
-                player.pos.y++;
-            }
-            // 2. 接地した位置に戻す
+        if (key === 's' || key === ' ') {
+            // ハードドロップのロジックを統一
+            while (!collide(arena, player)) player.pos.y++;
             player.pos.y--;
-            
-            // 3. 接地したミノを固定する
             merge(arena, player);
-            
-            // 4. ライン消去を実行
             arenaSweep();
-            
-            // 5. ライン消去の結果、一番上にブロックが残ったかチェック
             if (arena[0].some(val => val !== 0)) {
                 gameOver();
             } else {
-                // 6. 問題なければ、次のミノを生成
                 playerReset();
             }
-            
-            // 7. 効果音
             audio.playHardDrop();
             event.preventDefault();
         }
@@ -521,8 +473,9 @@
                     while (!collide(arena, player)) player.pos.y++;
                     player.pos.y--;
                     merge(arena, player);
+                    arenaSweep();
                     if (arena[0].some(val => val !== 0)) { gameOver(); } 
-                    else { playerReset(); arenaSweep(); }
+                    else { playerReset(); }
                     audio.playHardDrop();
                 } else if (dy < -threshold) playerRotate();
             }
