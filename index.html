@@ -2,28 +2,29 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>HYPER TETRIS: OVERDRIVE</title>
     <style>
         body { 
             margin: 0; background: #000; color: #fff; 
             display: flex; justify-content: center; align-items: center; 
-            height: 100vh; overflow: hidden; 
+            height: 100vh; width: 100vw; overflow: hidden; 
             font-family: 'Arial Black', sans-serif;
-            touch-action: none;
+            touch-action: none; /* スクロール・ズーム防止 */
         }
-        #game-container { position: relative; display: flex; flex-direction: column; align-items: center; }
-        #ui-container { display: flex; width: 100%; justify-content: space-around; margin-bottom: 10px; }
+        #game-container { position: relative; display: flex; flex-direction: column; align-items: center; width: 100%; height: 100%; }
+        #ui-container { display: flex; width: 90%; justify-content: space-around; margin-top: 10px; margin-bottom: 10px; }
         canvas { 
             border: 4px solid #333; 
             box-shadow: 0 0 50px rgba(0, 255, 255, 0.2);
             background: #050505;
-            max-width: 90vw;
-            max-height: 60vh;
+            max-width: 95vw;
+            max-height: 70vh;
         }
         #ui { text-align: center; }
-        .stat-label { font-size: 14px; color: #0ff; text-transform: uppercase; }
-        .stat-value { font-size: 20px; color: #fff; text-shadow: 0 0 10px #0ff; }
-        #controls { display: none; }
+        .stat-label { font-size: 12px; color: #0ff; text-transform: uppercase; }
+        .stat-value { font-size: 18px; color: #fff; text-shadow: 0 0 10px #0ff; }
+        
         .overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.8); display: flex; flex-direction: column;
@@ -34,6 +35,7 @@
             padding: 15px 30px; font-size: 20px; background: #0ff; border: none; 
             cursor: pointer; font-family: 'Arial Black';
         }
+        
         #combo-popup {
             position: absolute; color: #ff0; font-size: 40px; font-weight: bold;
             pointer-events: none; display: none; z-index: 100; text-shadow: 0 0 10px #f0f;
@@ -369,20 +371,6 @@
         player.pos.y = 0;
         player.pos.x = Math.floor(COL / 2) - Math.floor(player.matrix[0].length / 2);
         drawNext();
-
-        // 生成時の衝突判定を厳密化
-        for (let y = 0; y < player.matrix.length; y++) {
-            for (let x = 0; x < player.matrix[y].length; x++) {
-                if (player.matrix[y][x] !== 0) {
-                    const ty = player.pos.y + y;
-                    const tx = player.pos.x + x;
-                    if (ty >= 0 && ty < ROW && arena[ty] && arena[ty][tx] !== 0) {
-                        gameOver();
-                        return;
-                    }
-                }
-            }
-        }
         if (collide(arena, player)) gameOver();
     }
 
@@ -432,29 +420,32 @@
         if (key === 'd') playerMove(1);
         if (key === 'w') playerRotate();
         if (key === 's' || key === ' ') {
-            // ハードドロップのロジックを統一
             while (!collide(arena, player)) player.pos.y++;
             player.pos.y--;
             merge(arena, player);
             arenaSweep();
-            if (arena[0].some(val => val !== 0)) {
-                gameOver();
-            } else {
-                playerReset();
-            }
+            if (arena[0].some(val => val !== 0)) { gameOver(); } 
+            else { playerReset(); }
             audio.playHardDrop();
             event.preventDefault();
         }
     });
 
+    // --- スマホ操作 (画面分割タッチ) ---
     let touchStartX = 0, touchStartY = 0, touchStartTime = 0, longPressTimer;
 
     window.addEventListener('touchstart', (e) => {
         if (isGameOver) return;
         const touch = e.touches[0];
-        touchStartX = touch.clientX; touchStartY = touch.clientY; touchStartTime = Date.now();
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+        touchStartTime = Date.now();
+
         longPressTimer = setTimeout(() => {
-            if (Date.now() - touchStartTime < 500) { playerDrop(); audio.playDrop(); }
+            if (Date.now() - touchStartTime < 500) {
+                playerDrop();
+                audio.playDrop();
+            }
         }, 500);
     }, {passive: false});
 
@@ -465,11 +456,27 @@
         const dx = touch.clientX - touchStartX;
         const dy = touch.clientY - touchStartY;
         const threshold = 30;
+
         if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
+            // 画面の左右どちらを触ったか判定
+            const screenMid = window.innerWidth / 2;
+            const isLeftHalf = touch.clientX < screenMid;
+
             if (Math.abs(dx) > Math.abs(dy)) {
-                if (dx > threshold) playerMove(1); else playerMove(-1);
+                // 横スワイプ
+                if (dx > threshold) {
+                    // 右スワイプ -> 右回転
+                    playerRotate(); 
+                } else {
+                    // 左スワイプ -> 左回転
+                    // (回転ロジックが逆向きなので、ここでは簡易的に回転を適用)
+                    const oldMatrix = player.matrix;
+                    player.matrix = player.matrix[0].map((_, i) => player.matrix.map(row => row[i]).reverse()).reverse();
+                    if (collide(arena, player)) player.matrix = oldMatrix; else audio.playRotate();
+                }
             } else {
-                if (dy > threshold) {
+                // 縦スワイプ
+                if (dy > threshold) { // 下スワイプ -> ハードドロップ
                     while (!collide(arena, player)) player.pos.y++;
                     player.pos.y--;
                     merge(arena, player);
@@ -477,7 +484,17 @@
                     if (arena[0].some(val => val !== 0)) { gameOver(); } 
                     else { playerReset(); }
                     audio.playHardDrop();
-                } else if (dy < -threshold) playerRotate();
+                } else if (dy < -threshold) {
+                    // 上スワイプは回転として扱う（既存ロジック）
+                    playerRotate();
+                }
+            }
+        } else {
+            // タップ操作 (左右半分で移動)
+            if (touch.clientX < window.innerWidth / 2) {
+                playerMove(-1);
+            } else {
+                playerMove(1);
             }
         }
     }, {passive: false});
