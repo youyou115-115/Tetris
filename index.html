@@ -803,6 +803,21 @@ window.addEventListener('touchend', (e) => {
 
     playerReset();
     draw();
+// scriptタグの最後の方、またはDOMContentLoadedの中に以下を追加
+document.addEventListener('DOMContentLoaded', () => {
+    const startBtn = document.querySelector('#title-screen button');
+    if (startBtn) {
+        // 「click」だけでなく「touchstart」でも確実に反応するようにする
+        const triggerStart = (e) => {
+            e.preventDefault(); // ブラウザのデフォルト動作を防止
+            startGame();
+        };
+        
+        startBtn.addEventListener('click', triggerStart);
+        startBtn.addEventListener('touchstart', triggerStart, {passive: false});
+    }
+});
+    
 </script>
 </body>
 </html>
