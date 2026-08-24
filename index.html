@@ -272,7 +272,7 @@ canvas {
         <div id="final-score" class="stat-value" style="color: #fff;">0</div>
         <div class="stat-label">HIGH SCORE</div>
         <div id="high-score" class="stat-value" style="color: var(--neon-yellow);">0</div>
-        <button onclick="startGame()" style="margin-top: 20px;">RETRY</button>
+        <button onclick="window.startGame()" ontouchstart="window.startGame()" style="margin-top: 20px;">RETRY</button>
     </div>
 </div>
 
@@ -754,8 +754,8 @@ function draw() {
     }
 
     const currentInterval = player.isBoostMode 
-        ? 100 
-        : Math.max(200, 1000 - (player.level * 50)); 
+    ? 100 
+    : Math.max(10, 700 - (player.level * 100)); 
 
     if (dropCounter >= currentInterval) {
         playerDrop();
