@@ -85,15 +85,25 @@
         display: inline-block;
     }
 
-    canvas { 
-        border: 3px solid rgba(0, 255, 255, 0.5);
-        box-shadow: 0 0 20px rgba(0, 255, 255, 0.4), inset 0 0 15px rgba(0, 255, 255, 0.2);
-        background: #050505;
-        max-width: 90vw;
-        max-height: 70vh;
-        object-fit: contain;
-        display: block;
-    }
+    /* CSSの修正 */
+
+/* Canvasのサイズをスマホ向けに最適化 */
+canvas { 
+    border: 3px solid rgba(0, 255, 255, 0.5);
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.4), inset 0 0 15px rgba(0, 255, 255, 0.2);
+    background: #050505;
+    /* 【修正】スマホで画面いっぱいに、かつアスペクト比を維持して表示 */
+    width: 100%; 
+    height: auto;
+    display: block;
+}
+
+/* コンテナが画面からはみ出さないように調整 */
+#game-container {
+    width: 100%;
+    max-width: 450px; /* スマホの横幅に合わせる */
+    margin: 0 auto;
+}
 
     /* タイトル画面：Canvasの真ん中に重なる */
     #title-screen.overlay {
@@ -220,7 +230,7 @@
     </div>
 
     <!-- ゲーム画面エリア -->
-    <div class="game-area" style="position: relative; display: inline-block;">
+    <div class="canvas-wrapper" style="position: relative; display: inline-block; width: 100%; max-width: 400px;">
         <canvas id="tetris"></canvas>
         
         <!-- タイトル画面：Canvasの真ん中に重なる -->
@@ -736,44 +746,70 @@ document.addEventListener('contextmenu', event => event.preventDefault());
 
 let touchStartX = 0, touchStartY = 0, touchStartTime = 0, longPressTimer;
 
-window.addEventListener('touchstart', (e) => {
-    // ブラウザのデフォルト動作（ズーム、スクロール、選択）を防止
-    if (e.cancelable) e.preventDefault();
+// --- JavaScriptの修正 ---
 
+// 【重要】setIntervalを止めるために、グローバル（関数の外）で定義
+let boostTimer = null; 
+let boostLoop = null; 
+
+window.addEventListener('touchstart', (e) => {
+    if (e.cancelable) e.preventDefault();
     if (isGameOver) return;
+
     const touch = e.touches[0];
     touchStartX = touch.clientX;
     touchStartY = touch.clientY;
     touchStartTime = Date.now();
 
-    // 長押し：ソフトドロップ
-    longPressTimer = setTimeout(() => {
-        if (Date.now() - touchStartTime < 500) {
-            playerDrop();
-            audio.playDrop();
+    // すでにタイマーが動いていたら一旦クリア
+    clearTimeout(boostTimer);
+    if (boostLoop) clearInterval(boostLoop);
+
+    // 長押し判定
+    boostTimer = setTimeout(() => {
+        if (Date.now() - touchStartTime < 1000) {
+            player.isBoostMode = true;
+            
+            // 【修正】boostLoopをグローバル変数として扱う
+            boostLoop = setInterval(() => {
+                if (!player.isBoostMode) {
+                    clearInterval(boostLoop);
+                    return;
+                }
+                playerDrop();
+                audio.playDrop();
+            }, 100); 
+
+            // 1秒経ったら自動で解除
+            setTimeout(() => { 
+                player.isBoostMode = false; 
+                if (boostLoop) clearInterval(boostLoop);
+            }, 1000);
         }
     }, 500);
 }, {passive: false});
 
 window.addEventListener('touchend', (e) => {
-    // ブラウザのデフォルト動作を防止
     if (e.cancelable) e.preventDefault();
-
     if (isGameOver) return;
-    clearTimeout(longPressTimer);
-    
+
+    // 【重要】指を離した瞬間に、すべてのタイマーを止める
+    clearTimeout(boostTimer);
+    if (boostLoop) {
+        clearInterval(boostLoop);
+        boostLoop = null;
+    }
+    player.isBoostMode = false; 
+
     const touch = e.changedTouches[0];
     const dx = touch.clientX - touchStartX;
     const dy = touch.clientY - touchStartY;
     const threshold = 30;
 
-    // フリック判定
     if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
         if (Math.abs(dx) > Math.abs(dy)) {
-            // 左右フリック：回転
             playerRotate(); 
         } else {
-            // 上下フリック
             if (dy > threshold) {
                 // 下フリック：ハードドロップ
                 while (!collide(arena, player)) player.pos.y++;
@@ -787,12 +823,11 @@ window.addEventListener('touchend', (e) => {
                 }
                 audio.playHardDrop();
             } else if (dy < -threshold) {
-                // 上フリック：回転
-                playerRotate();
+                playerRotate(); 
             }
         }
     } else {
-        // タップ判定：左右移動
+        // タップ操作：左右移動
         if (touch.clientX < window.innerWidth / 2) {
             playerMove(-1);
         } else {
