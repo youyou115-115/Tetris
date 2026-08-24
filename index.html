@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-1.0, maximum-scale=1.0, user-scalable=no">
     <title>HYPER TETRIS: OVERDRIVE</title>
-   <style>
+<style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&family=Permanent+Marker&display=swap');
 
     :root {
@@ -43,16 +43,25 @@
 
     #ui-container { 
     display: flex; 
-    width: 95vw; /* 画面幅いっぱいに広げる */
-    max-width: 400px; /* ゲーム画面の幅に合わせる */
+    width: 95vw; /* 画面幅いっぱい */
+    max-width: 400px; /* Canvasの幅に合わせる */
     justify-content: space-between; 
     padding: 15px;
-    background: rgba(0, 255, 255, 0.1); /* 枠線のような背景 */
-    border: 2px solid rgba(0, 255, 255, 0.3);
-    border-bottom: none; /* 下のCanvasと繋げる */
+    background: rgba(0, 255, 255, 0.1); /* ネオンの光が漏れているような背景 */
+    border: 3px solid rgba(0, 255, 255, 0.3);
+    border-bottom: none; /* Canvasと一体化させる */
     box-sizing: border-box;
     z-index: 10;
+    margin-bottom: 5px; /* Canvasとの隙間 */
 }
+
+.game-area {
+    position: relative;
+    display: inline-block;
+    z-index: 1;
+}
+
+
 
     .stat-label { 
         font-family: 'Permanent Marker', cursive; 
@@ -70,7 +79,7 @@
         text-shadow: 0 0 10px var(--neon-cyan), 0 0 20px var(--neon-magenta);
     }
 
-    /* Canvasの親要素（タイトル画面を重ねるためのコンテナ） */
+    /* Canvasの親要素 */
     .canvas-wrapper {
         position: relative;
         display: inline-block;
@@ -86,40 +95,40 @@
         display: block;
     }
 
-    /* 【修正】タイトル画面：Canvasの真ん中に重なるように設定 */
+    /* タイトル画面：Canvasの真ん中に重なる */
     #title-screen.overlay {
-        position: absolute; /* Canvasに対して絶対配置 */
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.7); /* 背景を少し透けさせてゲーム画面を見せる */
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        z-index: 10;
-        pointer-events: auto; /* ボタンを押せるようにする */
-    }
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 100; /* Canvasより確実に上 */
+    pointer-events: auto;
+}
 
-    /* ゲームオーバー画面は画面全体を覆う */
+    /* ゲームオーバー画面 */
     #gameover-screen.overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.85);
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        z-index: 100;
-    }
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 200;
+}
 
     .overlay h1 { 
         font-family: 'Permanent Marker', cursive;
-        font-size: 32px; /* 画面に収まるよう調整 */
+        font-size: 32px; 
         color: var(--neon-cyan); 
         text-align: center; 
         margin-bottom: 15px; 
@@ -138,6 +147,7 @@
         box-shadow: 0 0 15px var(--neon-magenta), inset 0 0 10px var(--neon-magenta);
         transition: 0.3s;
         text-transform: uppercase;
+        pointer-events: auto; /* ボタンを確実にクリック可能にする */
     }
 
     .overlay button:active { 
@@ -147,46 +157,23 @@
         box-shadow: 0 0 40px var(--neon-magenta);
     }
         
-    /* ゲームエリア（Canvasとコンボの親） */
-.game-area {
-    position: relative;
-    display: inline-block;
-}
-
-/* コンボ表示：Canvasの「すぐ上」に配置 */
-#combo-popup {
+   #combo-popup {
     position: absolute;
-    top: -50px; /* Canvasの「外（上）」に配置 */
+    top: -60px; /* Canvasの「外（上）」に配置 */
     left: 50%;
-    transform: translateX(-50%); /* 中央寄せ */
+    transform: translateX(-50%);
     pointer-events: none;
     display: none;
     z-index: 100;
     text-transform: uppercase;
     white-space: nowrap;
-    /* グラフィティ風の巨大なエフェクト */
+    /* 派手なグラフィティ・ネオン効果 */
     text-shadow: 
         0 0 10px rgba(255, 255, 255, 0.8),
         0 0 20px var(--neon-yellow),
         0 0 40px var(--neon-magenta);
+    filter: drop-shadow(0 0 10px rgba(0,0,0,0.5));
 }
-
-/* タイトル画面はCanvasに重なるように維持 */
-#title-screen.overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.7);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    z-index: 10;
-    pointer-events: auto;
-}
-
     .shake { animation: shake 0.2s infinite; }
     @keyframes shake {
         0% { transform: translate(2px, 2px); }
@@ -197,45 +184,44 @@
 </head>
 <body>
     <div id="game-container">
-        <!-- 【変更】UIをCanvasの外（上部）に配置 -->
-        <div id="ui-container">
-            <div id="ui">
-                <div class="stat-label">SCORE</div>
-                <div id="score" class="stat-value">0</div>
-                <div class="stat-label">LEVEL</div>
-                <div id="level" class="stat-value">1</div>
-            </div>
-            <div id="next-container">
-                <div class="stat-label">NEXT</div>
-                <canvas id="next" width="60" height="60"></canvas>
-            </div>
+    <!-- 【修正】UIはCanvasの外、一番上に配置 -->
+    <div id="ui-container">
+        <div id="ui">
+            <div class="stat-label">SCORE</div>
+            <div id="score" class="stat-value">0</div>
+            <div class="stat-label">LEVEL</div>
+            <div id="level" class="stat-value">1</div>
         </div>
-
-        <!-- ゲーム画面エリア -->
-        <div class="game-area" style="position: relative;">
-            <canvas id="tetris"></canvas>
-            
-            <!-- タイトル画面：Canvasの真上に重なる -->
-            <div id="title-screen" class="overlay">
-                <h1 style="font-size: 32px; margin-bottom: 10px;">HYPER<br>TETRIS<br><span style="color: var(--neon-magenta); font-size: 20px;">OVERDRIVE</span></h1>
-                <button onclick="startGame()">START</button>
-            </div>
-
-            <!-- コンボ表示：Canvasのすぐ上に浮かぶように配置 -->
-            <div id="combo-popup">COMBO!!</div>
-        </div>
-
-
-        <!-- ゲームオーバー画面：画面全体を覆う -->
-        <div id="gameover-screen" class="overlay" style="display: none;">
-            <h1 style="color: #f00; text-shadow: 0 0 20px #f00;">GAME OVER</h1>
-            <div class="stat-label">FINAL SCORE</div>
-            <div id="final-score" class="stat-value" style="color: #fff;">0</div>
-            <div class="stat-label">HIGH SCORE</div>
-            <div id="high-score" class="stat-value" style="color: var(--neon-yellow);">0</div>
-            <button onclick="startGame()" style="margin-top: 20px;">RETRY</button>
+        <div id="next-container">
+            <div class="stat-label">NEXT</div>
+            <canvas id="next" width="60" height="60"></canvas>
         </div>
     </div>
+
+    <!-- ゲーム画面エリア -->
+    <div class="game-area" style="position: relative; display: inline-block;">
+        <canvas id="tetris"></canvas>
+        
+        <!-- タイトル画面：Canvasの真ん中に重なる -->
+        <div id="title-screen" class="overlay">
+            <h1 style="font-size: 32px; margin-bottom: 10px;">HYPER<br>TETRIS<br><span style="color: var(--neon-magenta); font-size: 20px;">OVERDRIVE</span></h1>
+            <button onclick="startGame()">START</button>
+        </div>
+
+        <!-- コンボ表示：Canvasの「すぐ上」に飛び出す -->
+        <div id="combo-popup">COMBO!!</div>
+    </div>
+
+    <!-- ゲームオーバー画面：画面全体を覆う -->
+    <div id="gameover-screen" class="overlay" style="display: none;">
+        <h1 style="color: #f00; text-shadow: 0 0 20px #f00;">GAME OVER</h1>
+        <div class="stat-label">FINAL SCORE</div>
+        <div id="final-score" class="stat-value" style="color: #fff;">0</div>
+        <div class="stat-label">HIGH SCORE</div>
+        <div id="high-score" class="stat-value" style="color: var(--neon-yellow);">0</div>
+        <button onclick="startGame()" style="margin-top: 20px;">RETRY</button>
+    </div>
+</div>
 
 <script type="module">
     const canvas = document.getElementById('tetris');
@@ -541,30 +527,38 @@ function draw() {
         const popup = document.getElementById('combo-popup');
         popup.style.display = 'block';
         
-        // 【修正】グラフィティ風のテキストと色
+         // 【修正】コンボ文字が「Canvasの外（上）」から飛び出す演出
+        popup.style.top = "-60px"; 
+        
+        // テキスト設定
         if (rowCount === 1) { 
             popup.innerText = "CLEARED!"; 
             popup.style.color = "#0ff"; 
             popup.style.fontSize = "40px";
-        }
-        else if (rowCount === 2) { 
+        } else if (rowCount === 2) { 
             popup.innerText = "DOUBLE!!"; 
             popup.style.color = "#f0f"; 
             popup.style.fontSize = "50px";
-        }
-        else if (rowCount === 3) { 
+        } else if (rowCount === 3) { 
             popup.innerText = "TRIPLE!!!"; 
             popup.style.color = "#ff0"; 
             popup.style.fontSize = "60px";
-        }
-        else { 
+        } else { 
             popup.innerText = "ULTRA " + rowCount + "!!!"; 
             popup.style.color = "#f00"; 
             popup.style.fontSize = "70px";
         }
 
-        canvas.classList.add('shake');
-        setTimeout(() => canvas.classList.remove('shake'), 300 + (rowCount * 100));
+        // 【修正】アニメーション：Canvasの外で「飛び出して消える」
+        popup.animate([
+            { transform: 'translateX(-50%) scale(0.5) translateY(0)', opacity: 0 },
+            { transform: 'translateX(-50%) scale(1.2) translateY(-20px)', opacity: 1 },
+            { transform: 'translateX(-50%) scale(1) translateY(-40px)', opacity: 0 }
+        ], {
+            duration: 600,
+            easing: 'ease-out'
+        });
+
         setTimeout(() => popup.style.display = 'none', 600);
         updateUI();
         audio.playClear(rowCount);
