@@ -188,17 +188,17 @@ canvas {
         box-shadow: 0 0 40px var(--neon-magenta);
     }
         
-   #combo-popup {
+   /* 修正後 */
+#combo-popup {
     position: absolute;
-    top: -60px; /* Canvasの「外（上）」に配置 */
+    top: -60px; /* Canvasのすぐ上に表示 */
     left: 50%;
     transform: translateX(-50%);
     pointer-events: none;
     display: none;
-    z-index: 100;
+    z-index: 9999; /* 最前面に */
     text-transform: uppercase;
     white-space: nowrap;
-    /* 派手なグラフィティ・ネオン効果 */
     text-shadow: 
         0 0 10px rgba(255, 255, 255, 0.8),
         0 0 20px var(--neon-yellow),
@@ -246,6 +246,8 @@ canvas {
                     <div style="color: var(--neon-cyan);">[S] : ソフトドロップ</div>
                     <div style="color: var(--neon-cyan);">[SPACE] : ハードドロップ</div>
                 </div>
+
+                
                 
                 <!-- スマホ操作 -->
                 <div style="margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 5px;">
@@ -258,6 +260,8 @@ canvas {
 
             <button onclick="startGame()">START</button>
         </div>
+
+         <div id="combo-popup">COMBO!!</div>
 
     <!-- ゲームオーバー画面：画面全体を覆う -->
     <div id="gameover-screen" class="overlay" style="display: none;">
@@ -562,36 +566,40 @@ function draw() {
         return false;
     }
 
-    function merge(arena, player) {
+        function merge(arena, player) {
         player.matrix.forEach((row, y) => {
             row.forEach((value, x) => {
                 if (value !== 0) {
                     const ty = y + player.pos.y;
-                    if (ty >= 0 && ty < ROW) arena[ty][x + player.pos.x] = value;
+                    const tx = x + player.pos.x;
+                    // 【修正】行(ty)と列(tx)の両方が、盤面の範囲内であることを厳格にチェック
+                    if (ty >= 0 && ty < ROW && tx >= 0 && tx < COL) {
+                        arena[ty][tx] = value;
+                    }
                 }
             });
         });
     }
-
-    function arenaSweep() {
-    let rowCount = 0;
-    for (let y = ROW - 1; y >= 0; --y) {
-        if (arena[y].every(val => val !== 0)) {
-            for (let x = 0; x < COL; x++) createLightning(x * SQ + SQ/2, y * SQ + SQ/2, rowCount + 1);
-            arena.splice(y, 1);
-            arena.unshift(new Array(COL).fill(0));
-            rowCount++;
-            y++;
+            function arenaSweep() {
+        let rowCount = 0;
+        for (let y = ROW - 1; y >= 0; --y) {
+            if (arena[y].every(val => val !== 0)) {
+                for (let x = 0; x < COL; x++) createLightning(x * SQ + SQ/2, y * SQ + SQ/2, rowCount + 1);
+                arena.splice(y, 1);
+                arena.unshift(new Array(COL).fill(0));
+                rowCount++;
+                y++;
+            }
         }
-    }
-    if (rowCount > 0) {
-            player.combo++;
+
+        // 【重要】rowCountが1以上の時だけ、確実にポップアップ処理を行う
+        if (rowCount > 0) {
+            player.combo += rowCount; // コンボ加算
             player.score += rowCount * 100 * player.level * player.combo;
             const newLevel = Math.floor(player.score / 1000) + 1;
             if (newLevel > player.level) player.level = newLevel;
 
             const popup = document.getElementById('combo-popup');
-            // 【修正】popupが存在する場合のみ、スタイル操作を行う
             if (popup) {
                 popup.style.display = 'block';
                 
@@ -615,7 +623,7 @@ function draw() {
                 }
 
                 // アニメーション
-                popup.animate([
+                const animation = popup.animate([
                     { transform: 'translateX(-50%) scale(0.5) translateY(0)', opacity: 0 },
                     { transform: 'translateX(-50%) scale(1.2) translateY(-20px)', opacity: 1 },
                     { transform: 'translateX(-50%) scale(1) translateY(-40px)', opacity: 0 }
@@ -624,9 +632,9 @@ function draw() {
                     easing: 'ease-out'
                 });
 
-                setTimeout(() => {
-                    if (popup) popup.style.display = 'none';
-                }, 600);
+                animation.onfinish = () => {
+                    popup.style.display = 'none';
+                };
             }
 
             updateUI();
@@ -634,8 +642,8 @@ function draw() {
         } else {
             player.combo = 0;
         }
-    return rowCount;
-}
+        return rowCount;
+    }
 
     function updateUI() {
         document.getElementById('score').innerText = player.score;
