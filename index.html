@@ -136,7 +136,8 @@ canvas {
     };
 
     let arena = [];
-    let player = { pos: {x: 0, y: 0}, matrix: null, next: null, score: 0, level: 1, combo: 0 };
+    // script内のplayer定義を修正
+let player = { pos: {x: 0, y: 0}, matrix: null, next: null, score: 0, level: 1, combo: 0, isBoostMode: false };
     let dropCounter = 0;
     let lastTime = 0;
     let dropInterval = 1000;
@@ -400,47 +401,43 @@ canvas {
         document.getElementById('level').innerText = player.level;
     }
 
-         function playerDrop() {
-        player.pos.y++;
-        if (collide(arena, player)) {
-            player.pos.y--;
-            merge(arena, player);
-            arenaSweep();
-            
-            // 【重要】着地した結果、ブロックが画面外(y < 0)に突き抜けたか判定
-            // プレイヤーの座標が0未満、またはパーツのどこかが0未満ならアウト
-            const isOut = player.pos.y < 0 || player.matrix.some((row, y) => 
-                row.some(value => value !== 0 && (player.pos.y + y) < 0)
-            );
-
-            if (isOut) {
-                gameOver();
-            } else {
-                playerReset();
-            }
-        }
-        dropCounter = 0;
-    }
-
-    function playerMove(dir) {
-        player.pos.x += dir;
-        if (collide(arena, player)) {
-            player.pos.x -= dir;
+// script内のplayerDrop関数を修正
+function playerDrop() {
+    player.pos.y++;
+    if (collide(arena, player)) {
+        player.pos.y--;
+        merge(arena, player);
+        arenaSweep();
+        
+        // 【修正】着地した結果、一番上の行(y=0)にパーツが残った場合のみゲームオーバー
+        // 「突き抜け」の判定は update 側で行うので、ここでは「積み上がり」だけを見る
+        if (arena[0].some(val => val !== 0)) {
+            gameOver();
         } else {
-            audio.playMove();
+            playerReset();
         }
     }
+}
+    function playerMove(dir) {
+    player.isBoostMode = false; // 【追加】操作したらブースト解除
+    player.pos.x += dir;
+    if (collide(arena, player)) {
+        player.pos.x -= dir;
+    } else {
+        audio.playMove();
+    }
+}
 
     function playerRotate() {
-        const oldMatrix = player.matrix;
-        player.matrix = player.matrix[0].map((_, i) => player.matrix.map(row => row[i]).reverse());
-        if (collide(arena, player)) {
-            player.matrix = oldMatrix;
-        } else {
-            audio.playRotate();
-        }
+    player.isBoostMode = false; // 【追加】操作したらブースト解除
+    const oldMatrix = player.matrix;
+    player.matrix = player.matrix[0].map((_, i) => player.matrix.map(row => row[i]).reverse());
+    if (collide(arena, player)) {
+        player.matrix = oldMatrix;
+    } else {
+        audio.playRotate();
     }
-
+}
        function playerReset() {
         const pieces = 'ILJOTSZ';
         if (!player.next) player.next = createPiece(pieces[pieces.length * Math.random() | 0]);
@@ -469,16 +466,29 @@ canvas {
     }
 
     function update(time = 0) {
-        if (isGameOver) return;
-        const deltaTime = time - lastTime;
-        lastTime = time;
-        dropCounter += deltaTime;
-        const currentInterval = Math.max(100, dropInterval - (player.level * 80));
-        if (dropCounter > currentInterval) playerDrop();
-        draw();
-        requestAnimationFrame(update);
+    if (isGameOver) return;
+    const deltaTime = time - lastTime;
+    lastTime = time;
+    dropCounter += deltaTime;
+
+    // --- 【追加】毎フレーム、画面外への突き抜けをチェック ---
+    // プレイヤーの座標がマイナスになったら、即ゲームオーバー
+    if (player.pos.y < 0) {
+        gameOver();
+        return;
     }
 
+    const currentInterval = player.isBoostMode 
+        ? 100 
+        : Math.max(200, 1000 - (player.level * 50)); 
+
+    if (dropCounter >= currentInterval) {
+        playerDrop();
+        dropCounter -= currentInterval; 
+    }
+    draw();
+    requestAnimationFrame(update);
+}
     window.startGame = function() {
         audio.init();
         arena = Array.from({ length: ROW }, () => Array(COL).fill(0));
@@ -533,23 +543,21 @@ window.addEventListener('touchstart', (e) => {
     }, 500);
 }, {passive: false});
 
+// script内のtouchendイベントリスナー内を修正
 window.addEventListener('touchend', (e) => {
     if (isGameOver) return;
     clearTimeout(longPressTimer);
-    
     const touch = e.changedTouches[0];
     const dx = touch.clientX - touchStartX;
     const dy = touch.clientY - touchStartY;
     const threshold = 30;
 
-    // フリック判定
     if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
         if (Math.abs(dx) > Math.abs(dy)) {
             // 左右フリック
             if (dx > threshold) {
                 playerRotate(); 
             } else {
-                // 左フリック（回転）
                 const oldMatrix = player.matrix;
                 player.matrix = player.matrix[0].map((_, i) => player.matrix.map(row => row[i]).reverse()).reverse();
                 if (collide(arena, player)) player.matrix = oldMatrix; else audio.playRotate();
@@ -562,21 +570,20 @@ window.addEventListener('touchend', (e) => {
                 player.pos.y--;
                 merge(arena, player);
                 arenaSweep();
-                if (arena[0].some(val => val !== 0)) { gameOver(); } 
+                if (player.pos.y < 0 || arena[0].some(val => val !== 0)) { gameOver(); } 
                 else { playerReset(); }
                 audio.playHardDrop();
             } else if (dy < -threshold) {
-                // 上フリック：回転
-                playerRotate();
+                // 【修正】上フリック：ブーストモード発動！
+                player.isBoostMode = true;
+                playerRotate(); 
             }
         }
     } else {
-        // タップ判定（左右移動）
-        if (touch.clientX < window.innerWidth / 2) {
-            playerMove(-1);
-        } else {
-            playerMove(1);
-        }
+        // タップ（左右移動）
+        player.isBoostMode = false; // 【追加】タップでも解除
+        if (touch.clientX < window.innerWidth / 2) playerMove(-1);
+        else playerMove(1);
     }
 }, {passive: false});
 
