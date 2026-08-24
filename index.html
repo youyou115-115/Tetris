@@ -4,96 +4,200 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-1.0, maximum-scale=1.0, user-scalable=no">
     <title>HYPER TETRIS: OVERDRIVE</title>
-    <style>
-        :root {
-            --neon-cyan: #00ffff;
-            --neon-magenta: #ff00ff;
-            --neon-yellow: #ffff00;
-        }
-        /* styleタグ内を修正 */
-body { 
-    margin: 0; 
-    background: #000; 
-    color: #fff; 
-    display: flex; 
-    justify-content: center; 
-    align-items: center; 
-    height: 100vh; 
-    width: 100vw; 
-    overflow: hidden; 
-    font-family: 'Arial Black', sans-serif;
-    touch-action: none; /* これが重要：ブラウザのデフォルトのスクロールやズームを無効化 */
-    
-    /* 【追加】テキスト選択を禁止して、青くなるのを防ぐ */
-    user-select: none;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-}
-        /* styleタグ内を以下のように修正 */
-#game-container { 
-    position: relative; 
-    display: flex; 
-    flex-direction: column; 
-    align-items: center; 
-    justify-content: flex-start; /* 上寄せに変更 */
-    width: 100%; 
-    height: 100%;
-    background: radial-gradient(circle, #001a1a 0%, #000 100%);
-    padding-top: 10px; /* 上部に少し余白 */
-}
+   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&family=Permanent+Marker&display=swap');
 
-#ui-container { 
+    :root {
+        --neon-cyan: #00ffff;
+        --neon-magenta: #ff00ff;
+        --neon-yellow: #ffff00;
+        --neon-red: #ff003c;
+    }
+
+    body { 
+        margin: 0; 
+        background: #000; 
+        color: #fff; 
+        display: flex; 
+        justify-content: center; 
+        align-items: center; 
+        height: 100vh; 
+        width: 100vw; 
+        overflow: hidden; 
+        font-family: 'Orbitron', sans-serif;
+        touch-action: none;
+        background: radial-gradient(circle, #001a1a 0%, #050505 100%);
+    }
+
+    #game-container { 
+        position: relative; 
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        width: 100%; 
+        height: 100%;
+        background: linear-gradient(rgba(0, 255, 255, 0.05) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(0, 255, 255, 0.05) 1px, transparent 1px);
+        background-size: 50px 50px;
+    }
+
+    #ui-container { 
     display: flex; 
-    width: 95%; 
-    justify-content: space-around; /* 離れすぎないよう調整 */
-    align-items: center;
-    padding: 5px;
+    width: 95vw; /* 画面幅いっぱいに広げる */
+    max-width: 400px; /* ゲーム画面の幅に合わせる */
+    justify-content: space-between; 
+    padding: 15px;
+    background: rgba(0, 255, 255, 0.1); /* 枠線のような背景 */
+    border: 2px solid rgba(0, 255, 255, 0.3);
+    border-bottom: none; /* 下のCanvasと繋げる */
+    box-sizing: border-box;
     z-index: 10;
 }
 
-canvas { 
-    border: 2px solid rgba(0, 255, 255, 0.3); 
-    box-shadow: 0 0 30px rgba(0, 255, 255, 0.1);
-    background: #050505;
-    max-width: 90vw;
-    max-height: 75vh; /* UIの分、少し高さを抑える */
-    object-fit: contain;
+    .stat-label { 
+        font-family: 'Permanent Marker', cursive; 
+        font-size: 14px; 
+        color: var(--neon-cyan); 
+        text-transform: uppercase; 
+        letter-spacing: 2px;
+        text-shadow: 0 0 10px var(--neon-cyan), 0 0 20px var(--neon-cyan);
+    }
+
+    .stat-value { 
+        font-size: 24px; 
+        font-weight: 900;
+        color: #fff; 
+        text-shadow: 0 0 10px var(--neon-cyan), 0 0 20px var(--neon-magenta);
+    }
+
+    /* Canvasの親要素（タイトル画面を重ねるためのコンテナ） */
+    .canvas-wrapper {
+        position: relative;
+        display: inline-block;
+    }
+
+    canvas { 
+        border: 3px solid rgba(0, 255, 255, 0.5);
+        box-shadow: 0 0 20px rgba(0, 255, 255, 0.4), inset 0 0 15px rgba(0, 255, 255, 0.2);
+        background: #050505;
+        max-width: 90vw;
+        max-height: 70vh;
+        object-fit: contain;
+        display: block;
+    }
+
+    /* 【修正】タイトル画面：Canvasの真ん中に重なるように設定 */
+    #title-screen.overlay {
+        position: absolute; /* Canvasに対して絶対配置 */
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7); /* 背景を少し透けさせてゲーム画面を見せる */
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 10;
+        pointer-events: auto; /* ボタンを押せるようにする */
+    }
+
+    /* ゲームオーバー画面は画面全体を覆う */
+    #gameover-screen.overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 100;
+    }
+
+    .overlay h1 { 
+        font-family: 'Permanent Marker', cursive;
+        font-size: 32px; /* 画面に収まるよう調整 */
+        color: var(--neon-cyan); 
+        text-align: center; 
+        margin-bottom: 15px; 
+        text-shadow: 0 0 10px var(--neon-cyan), 0 0 30px var(--neon-cyan), 0 0 50px var(--neon-magenta);
+        line-height: 1.2;
+    }
+
+    .overlay button { 
+        padding: 12px 30px; 
+        font-size: 22px; 
+        font-family: 'Orbitron', sans-serif;
+        background: transparent; 
+        border: 3px solid var(--neon-magenta); 
+        color: var(--neon-magenta);
+        cursor: pointer; 
+        box-shadow: 0 0 15px var(--neon-magenta), inset 0 0 10px var(--neon-magenta);
+        transition: 0.3s;
+        text-transform: uppercase;
+    }
+
+    .overlay button:active { 
+        transform: scale(0.95); 
+        background: var(--neon-magenta); 
+        color: #fff; 
+        box-shadow: 0 0 40px var(--neon-magenta);
+    }
+        
+    /* ゲームエリア（Canvasとコンボの親） */
+.game-area {
+    position: relative;
+    display: inline-block;
 }
 
-        .overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); display: flex; flex-direction: column;
-            justify-content: center; align-items: center; z-index: 100;
-        }
-        .overlay h1 { 
-            font-size: 40px; color: var(--neon-cyan); text-align: center; 
-            margin-bottom: 20px; text-shadow: 0 0 20px var(--neon-cyan);
-            line-height: 1;
-        }
-        .overlay button { 
-            padding: 15px 40px; font-size: 24px; background: transparent; 
-            border: 2px solid var(--neon-magenta); color: var(--neon-magenta);
-            cursor: pointer; font-family: 'Arial Black';
-            box-shadow: 0 0 15px var(--neon-magenta);
-            transition: 0.3s;
-        }
-        .overlay button:active { transform: scale(0.9); background: var(--neon-magenta); color: #fff; }
-        
-        #combo-popup {
-            position: absolute; color: var(--neon-yellow); font-size: 40px; font-weight: bold;
-            pointer-events: none; display: none; z-index: 100; text-shadow: 0 0 20px #f0f;
-        }
-        .shake { animation: shake 0.2s infinite; }
-        @keyframes shake {
-            0% { transform: translate(2px, 2px); }
-            50% { transform: translate(-2px, -2px); }
-            100% { transform: translate(2px, -2px); }
-        }
-    </style>
+/* コンボ表示：Canvasの「すぐ上」に配置 */
+#combo-popup {
+    position: absolute;
+    top: -50px; /* Canvasの「外（上）」に配置 */
+    left: 50%;
+    transform: translateX(-50%); /* 中央寄せ */
+    pointer-events: none;
+    display: none;
+    z-index: 100;
+    text-transform: uppercase;
+    white-space: nowrap;
+    /* グラフィティ風の巨大なエフェクト */
+    text-shadow: 
+        0 0 10px rgba(255, 255, 255, 0.8),
+        0 0 20px var(--neon-yellow),
+        0 0 40px var(--neon-magenta);
+}
+
+/* タイトル画面はCanvasに重なるように維持 */
+#title-screen.overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+    pointer-events: auto;
+}
+
+    .shake { animation: shake 0.2s infinite; }
+    @keyframes shake {
+        0% { transform: translate(2px, 2px); }
+        50% { transform: translate(-2px, -2px); }
+        100% { transform: translate(2px, -2px); }
+    }
+</style>
 </head>
 <body>
     <div id="game-container">
+        <!-- 【変更】UIをCanvasの外（上部）に配置 -->
         <div id="ui-container">
             <div id="ui">
                 <div class="stat-label">SCORE</div>
@@ -107,14 +211,22 @@ canvas {
             </div>
         </div>
 
-        <canvas id="tetris"></canvas>
-        <div id="combo-popup">COMBO!!</div>
+        <!-- ゲーム画面エリア -->
+        <div class="game-area" style="position: relative;">
+            <canvas id="tetris"></canvas>
+            
+            <!-- タイトル画面：Canvasの真上に重なる -->
+            <div id="title-screen" class="overlay">
+                <h1 style="font-size: 32px; margin-bottom: 10px;">HYPER<br>TETRIS<br><span style="color: var(--neon-magenta); font-size: 20px;">OVERDRIVE</span></h1>
+                <button onclick="startGame()">START</button>
+            </div>
 
-        <div id="title-screen" class="overlay">
-            <h1>HYPER<br>TETRIS<br><span style="color: var(--neon-magenta); font-size: 24px;">OVERDRIVE</span></h1>
-            <button onclick="startGame()">START</button>
+            <!-- コンボ表示：Canvasのすぐ上に浮かぶように配置 -->
+            <div id="combo-popup">COMBO!!</div>
         </div>
 
+
+        <!-- ゲームオーバー画面：画面全体を覆う -->
         <div id="gameover-screen" class="overlay" style="display: none;">
             <h1 style="color: #f00; text-shadow: 0 0 20px #f00;">GAME OVER</h1>
             <div class="stat-label">FINAL SCORE</div>
@@ -317,41 +429,63 @@ let player = { pos: {x: 0, y: 0}, matrix: null, next: null, score: 0, level: 1, 
     function createPiece(type) { return JSON.parse(JSON.stringify(pieceTypes[type])); }
 
     function drawSquare(x, y, color, context = ctx, size = SQ) {
-        context.fillStyle = color;
-        context.shadowBlur = 15;
-        context.shadowColor = color;
-        context.fillRect(x * size, y * size, size, size);
-        context.shadowBlur = 0;
-        context.strokeStyle = 'rgba(255,255,255,0.5)';
-        context.lineWidth = 1;
-        context.strokeRect(x * size + 1, y * size + 1, size - 2, size - 2);
-        context.fillStyle = 'rgba(255, 255, 255, 0.2)';
-        context.fillRect(x * size, y * size, size / 2, size / 2);
+    // 1. ブロックの本体（少し透明感のある色）
+    context.fillStyle = color;
+    context.globalAlpha = 0.8;
+    context.fillRect(x * size, y * size, size, size);
+    context.globalAlpha = 1.0;
+
+    // 2. ネオンの縁取り（光るライン）
+    context.strokeStyle = '#fff'; // 中心は白くして輝きを出す
+    context.lineWidth = 2;
+    context.strokeRect(x * size + 2, y * size + 2, size - 4, size - 4);
+
+    // 3. 外側のネオン・グロー（光の滲み）
+    context.shadowBlur = 10;
+    context.shadowColor = color;
+    context.strokeStyle = color;
+    context.lineWidth = 1;
+    context.strokeRect(x * size + 1, y * size + 1, size - 2, size - 2);
+    context.shadowBlur = 0;
+
+    // 4. ハイライト（光が当たっている感じ）
+    context.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    context.fillRect(x * size + 2, y * size + 2, size / 2, 2);
+}
+
+   // draw関数内の背景描画部分を修正
+function draw() {
+    // 背景を少し暗いグラデーションにする
+    ctx.fillStyle = '#050505';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // 背景グリッド（少し歪んだ感じを出すために透明度を調整）
+    gridOffset = (gridOffset + (player.level * 0.5)) % SQ;
+    ctx.strokeStyle = 'rgba(0, 255, 255, 0.08)';
+    ctx.lineWidth = 1;
+    for (let i = -1; i <= COL; i++) { 
+        ctx.beginPath(); ctx.moveTo(i * SQ, 0); ctx.lineTo(i * SQ, canvas.height); ctx.stroke(); 
+    }
+    for (let i = -1; i <= ROW; i++) {
+        let yPos = i * SQ + gridOffset;
+        ctx.beginPath(); ctx.moveTo(0, yPos); ctx.lineTo(canvas.width, yPos); ctx.stroke();
     }
 
-    function draw() {
-        ctx.fillStyle = '#050505';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // 背景グリッド
-        gridOffset = (gridOffset + (player.level * 0.5)) % SQ;
-        ctx.strokeStyle = 'rgba(0, 255, 255, 0.05)';
-        ctx.lineWidth = 1;
-        for (let i = -1; i <= COL; i++) { ctx.beginPath(); ctx.moveTo(i * SQ, 0); ctx.lineTo(i * SQ, canvas.height); ctx.stroke(); }
-        for (let i = -1; i <= ROW; i++) {
-            let yPos = i * SQ + gridOffset;
-            ctx.beginPath(); ctx.moveTo(0, yPos); ctx.lineTo(canvas.width, yPos); ctx.stroke();
-        }
-
-        arena.forEach((row, y) => { row.forEach((value, x) => { if (value !== 0) drawSquare(x, y, colors[value]); }); });
-        if (player.matrix) {
-            player.matrix.forEach((row, y) => { row.forEach((value, x) => { if (value !== 0) drawSquare(player.pos.x + x, player.pos.y + y, colors[value]); }); });
-        }
-        particles.forEach((p, index) => {
-            p.update(); p.draw(ctx);
-            if (p.life <= 0) particles.splice(index, 1);
-        });
+    // --- 追加：ノイズ・テクスチャ効果（ランダムなドットを薄く描画） ---
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.02)';
+    for (let i = 0; i < 10; i++) {
+        ctx.fillRect(Math.random() * canvas.width, Math.random() * canvas.height, 2, 2);
     }
+
+    arena.forEach((row, y) => { row.forEach((value, x) => { if (value !== 0) drawSquare(x, y, colors[value]); }); });
+    if (player.matrix) {
+        player.matrix.forEach((row, y) => { row.forEach((value, x) => { if (value !== 0) drawSquare(player.pos.x + x, player.pos.y + y, colors[value]); }); });
+    }
+    particles.forEach((p, index) => {
+        p.update(); p.draw(ctx);
+        if (p.life <= 0) particles.splice(index, 1);
+    });
+}
 
     function drawNext() {
         nextCtx.fillStyle = '#111';
@@ -388,37 +522,57 @@ let player = { pos: {x: 0, y: 0}, matrix: null, next: null, score: 0, level: 1, 
     }
 
     function arenaSweep() {
-        let rowCount = 0;
-        for (let y = ROW - 1; y >= 0; --y) {
-            if (arena[y].every(val => val !== 0)) {
-                for (let x = 0; x < COL; x++) createLightning(x * SQ + SQ/2, y * SQ + SQ/2, rowCount + 1);
-                arena.splice(y, 1);
-                arena.unshift(new Array(COL).fill(0));
-                rowCount++;
-                y++;
-            }
+    let rowCount = 0;
+    for (let y = ROW - 1; y >= 0; --y) {
+        if (arena[y].every(val => val !== 0)) {
+            for (let x = 0; x < COL; x++) createLightning(x * SQ + SQ/2, y * SQ + SQ/2, rowCount + 1);
+            arena.splice(y, 1);
+            arena.unshift(new Array(COL).fill(0));
+            rowCount++;
+            y++;
         }
-        if (rowCount > 0) {
-            player.combo++;
-            player.score += rowCount * 100 * player.level * player.combo;
-            const newLevel = Math.floor(player.score / 1000) + 1;
-            if (newLevel > player.level) player.level = newLevel;
-            const popup = document.getElementById('combo-popup');
-            popup.style.display = 'block';
-            if (rowCount === 1) { popup.innerText = "CLEARED!"; popup.style.fontSize = "30px"; popup.style.color = "#0ff"; }
-            else if (rowCount === 2) { popup.innerText = "DOUBLE!"; popup.style.fontSize = "40px"; popup.style.color = "#f0f"; }
-            else if (rowCount === 3) { popup.innerText = "TRIPLE!!"; popup.style.fontSize = "50px"; popup.style.color = "#ff0"; }
-            else { popup.innerText = "ULTRA " + rowCount + "!"; popup.style.fontSize = "60px"; popup.style.color = "#f00"; popup.style.textShadow = "0 0 20px #f00"; }
-            canvas.classList.add('shake');
-            setTimeout(() => canvas.classList.remove('shake'), 300 + (rowCount * 100));
-            setTimeout(() => popup.style.display = 'none', 600);
-            updateUI();
-            audio.playClear(rowCount);
-        } else {
-            player.combo = 0;
-        }
-        return rowCount;
     }
+    if (rowCount > 0) {
+        player.combo++;
+        player.score += rowCount * 100 * player.level * player.combo;
+        const newLevel = Math.floor(player.score / 1000) + 1;
+        if (newLevel > player.level) player.level = newLevel;
+
+        const popup = document.getElementById('combo-popup');
+        popup.style.display = 'block';
+        
+        // 【修正】グラフィティ風のテキストと色
+        if (rowCount === 1) { 
+            popup.innerText = "CLEARED!"; 
+            popup.style.color = "#0ff"; 
+            popup.style.fontSize = "40px";
+        }
+        else if (rowCount === 2) { 
+            popup.innerText = "DOUBLE!!"; 
+            popup.style.color = "#f0f"; 
+            popup.style.fontSize = "50px";
+        }
+        else if (rowCount === 3) { 
+            popup.innerText = "TRIPLE!!!"; 
+            popup.style.color = "#ff0"; 
+            popup.style.fontSize = "60px";
+        }
+        else { 
+            popup.innerText = "ULTRA " + rowCount + "!!!"; 
+            popup.style.color = "#f00"; 
+            popup.style.fontSize = "70px";
+        }
+
+        canvas.classList.add('shake');
+        setTimeout(() => canvas.classList.remove('shake'), 300 + (rowCount * 100));
+        setTimeout(() => popup.style.display = 'none', 600);
+        updateUI();
+        audio.playClear(rowCount);
+    } else {
+        player.combo = 0;
+    }
+    return rowCount;
+}
 
     function updateUI() {
         document.getElementById('score').innerText = player.score;
