@@ -753,9 +753,9 @@ function draw() {
         return;
     }
 
-    const currentInterval = player.isBoostMode 
-    ? 100 
-    : Math.max(10, 700 - (player.level * 100)); 
+     const currentInterval = player.isBoostMode 
+        ? 100 
+        : Math.max(250, 1000 - (player.level * 50)); 
 
     if (dropCounter >= currentInterval) {
         playerDrop();
