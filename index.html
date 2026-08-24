@@ -233,15 +233,31 @@ canvas {
     <div class="canvas-wrapper" style="position: relative; display: inline-block; width: 100%; max-width: 400px;">
         <canvas id="tetris"></canvas>
         
-        <!-- タイトル画面：Canvasの真ん中に重なる -->
+         <!-- タイトル画面：Canvasの真ん中に重なる -->
         <div id="title-screen" class="overlay">
             <h1 style="font-size: 32px; margin-bottom: 10px;">HYPER<br>TETRIS<br><span style="color: var(--neon-magenta); font-size: 20px;">OVERDRIVE</span></h1>
+            
+              <!-- 【追加】操作説明エリア -->
+            <div class="controls-info" style="margin-bottom: 20px; text-align: center; font-size: 14px; line-height: 1.6; color: #fff; text-shadow: 0 0 5px #fff; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px; border: 1px solid rgba(0,255,255,0.2);">
+                <!-- PC操作 -->
+                <div style="margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 5px;">
+                    <div style="color: var(--neon-cyan);">[A] [D] : 左右移動</div>
+                    <div style="color: var(--neon-cyan);">[W] : 回転</div>
+                    <div style="color: var(--neon-cyan);">[S] : ソフトドロップ</div>
+                    <div style="color: var(--neon-cyan);">[SPACE] : ハードドロップ</div>
+                </div>
+                
+                <!-- スマホ操作 -->
+                <div style="margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 5px;">
+                    <div style="color: var(--neon-yellow); font-weight: bold; margin-bottom: 3px;">【スマホ操作】</div>
+                    <div style="color: var(--neon-cyan);">タップ：左右に移動</div>
+                    <div style="color: var(--neon-cyan);">左右上スワイプ：回転</div>
+                    <div style="color: var(--neon-cyan);">下スワイプ：一気に落とす</div>
+                </div>
+            </div>
+
             <button onclick="startGame()">START</button>
         </div>
-
-        <!-- コンボ表示：Canvasの「すぐ上」に飛び出す -->
-        <div id="combo-popup">COMBO!!</div>
-    </div>
 
     <!-- ゲームオーバー画面：画面全体を覆う -->
     <div id="gameover-screen" class="overlay" style="display: none;">
