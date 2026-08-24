@@ -143,6 +143,7 @@ canvas {
 }
 
     /* ゲームオーバー画面 */
+        /* ゲームオーバー画面 */
     #gameover-screen.overlay {
     position: absolute;
     top: 0;
@@ -154,7 +155,8 @@ canvas {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    z-index: 200;
+    z-index: 2000; /* title-screen(1000)より高く設定 */
+    pointer-events: auto; /* タッチイベントを許可 */
 }
 
     .overlay h1 { 
