@@ -2,49 +2,79 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-1.0, maximum-scale=1.0, user-scalable=no">
     <title>HYPER TETRIS: OVERDRIVE</title>
     <style>
+        :root {
+            --neon-cyan: #00ffff;
+            --neon-magenta: #ff00ff;
+            --neon-yellow: #ffff00;
+        }
         body { 
             margin: 0; background: #000; color: #fff; 
             display: flex; justify-content: center; align-items: center; 
             height: 100vh; width: 100vw; overflow: hidden; 
             font-family: 'Arial Black', sans-serif;
-            touch-action: none; /* スクロール・ズーム防止 */
+            touch-action: none;
         }
-        #game-container { position: relative; display: flex; flex-direction: column; align-items: center; width: 100%; height: 100%; }
-        #ui-container { display: flex; width: 90%; justify-content: space-around; margin-top: 10px; margin-bottom: 10px; }
-        canvas { 
-            border: 4px solid #333; 
-            box-shadow: 0 0 50px rgba(0, 255, 255, 0.2);
-            background: #050505;
-            max-width: 95vw;
-            max-height: 70vh;
+        #game-container { 
+            position: relative; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            width: 100%; 
+            height: 100%;
+            background: radial-gradient(circle, #001a1a 0%, #000 100%);
+        }
+        #ui-container { 
+            display: flex; 
+            width: 95%; 
+            justify-content: space-between; 
+            padding: 10px;
+            z-index: 10;
         }
         #ui { text-align: center; }
-        .stat-label { font-size: 12px; color: #0ff; text-transform: uppercase; }
-        .stat-value { font-size: 18px; color: #fff; text-shadow: 0 0 10px #0ff; }
+        .stat-label { font-size: 10px; color: var(--neon-cyan); text-transform: uppercase; letter-spacing: 1px; }
+        .stat-value { font-size: 18px; color: #fff; text-shadow: 0 0 10px var(--neon-cyan); }
         
+        canvas { 
+            border: 2px solid rgba(0, 255, 255, 0.3); 
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.1);
+            background: #050505;
+            /* レスポンシブ対応: 画面に収まるように調整 */
+            max-width: 90vw;
+            max-height: 70vh;
+            object-fit: contain;
+        }
+
         .overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); display: flex; flex-direction: column;
+            background: rgba(0,0,0,0.85); display: flex; flex-direction: column;
             justify-content: center; align-items: center; z-index: 100;
         }
-        .overlay h1 { font-size: 30px; color: #0ff; text-align: center; margin-bottom: 20px; }
-        .overlay button { 
-            padding: 15px 30px; font-size: 20px; background: #0ff; border: none; 
-            cursor: pointer; font-family: 'Arial Black';
+        .overlay h1 { 
+            font-size: 40px; color: var(--neon-cyan); text-align: center; 
+            margin-bottom: 20px; text-shadow: 0 0 20px var(--neon-cyan);
+            line-height: 1;
         }
+        .overlay button { 
+            padding: 15px 40px; font-size: 24px; background: transparent; 
+            border: 2px solid var(--neon-magenta); color: var(--neon-magenta);
+            cursor: pointer; font-family: 'Arial Black';
+            box-shadow: 0 0 15px var(--neon-magenta);
+            transition: 0.3s;
+        }
+        .overlay button:active { transform: scale(0.9); background: var(--neon-magenta); color: #fff; }
         
         #combo-popup {
-            position: absolute; color: #ff0; font-size: 40px; font-weight: bold;
-            pointer-events: none; display: none; z-index: 100; text-shadow: 0 0 10px #f0f;
+            position: absolute; color: var(--neon-yellow); font-size: 40px; font-weight: bold;
+            pointer-events: none; display: none; z-index: 100; text-shadow: 0 0 20px #f0f;
         }
         .shake { animation: shake 0.2s infinite; }
         @keyframes shake {
-            0% { transform: translate(1px, 1px); }
-            50% { transform: translate(-1px, -1px); }
-            100% { transform: translate(1px, -1px); }
+            0% { transform: translate(2px, 2px); }
+            50% { transform: translate(-2px, -2px); }
+            100% { transform: translate(2px, -2px); }
         }
     </style>
 </head>
@@ -64,21 +94,20 @@
         </div>
 
         <canvas id="tetris"></canvas>
-
         <div id="combo-popup">COMBO!!</div>
 
         <div id="title-screen" class="overlay">
-            <h1 style="font-size: 40px;">HYPER<br>TETRIS<br><span style="font-size: 20px; color: #f0f;">OVERDRIVE</span></h1>
+            <h1>HYPER<br>TETRIS<br><span style="color: var(--neon-magenta); font-size: 24px;">OVERDRIVE</span></h1>
             <button onclick="startGame()">START</button>
         </div>
 
         <div id="gameover-screen" class="overlay" style="display: none;">
-            <h1 style="color: #f00;">GAME OVER</h1>
+            <h1 style="color: #f00; text-shadow: 0 0 20px #f00;">GAME OVER</h1>
             <div class="stat-label">FINAL SCORE</div>
             <div id="final-score" class="stat-value" style="color: #fff;">0</div>
             <div class="stat-label">HIGH SCORE</div>
-            <div id="high-score" class="stat-value" style="color: #ff0;">0</div>
-            <button onclick="startGame()">RETRY</button>
+            <div id="high-score" class="stat-value" style="color: var(--neon-yellow);">0</div>
+            <button onclick="startGame()" style="margin-top: 20px;">RETRY</button>
         </div>
     </div>
 
@@ -113,15 +142,18 @@
     let isGameOver = false;
     let gridOffset = 0;
 
-    class AudioEngine {
+           class AudioEngine {
         constructor() {
             this.ctx = null;
             this.masterGain = null;
             this.initialized = false;
             this.timerId = null;
+            this.step = 0;
         }
         init() {
-            if (this.initialized) this.stopBGM();
+            // すでに動いている場合は、一旦完全に止める
+            this.stopBGM();
+
             this.ctx = new (window.AudioContext || window.webkitAudioContext)();
             this.masterGain = this.ctx.createGain();
             this.masterGain.connect(this.ctx.destination);
@@ -130,11 +162,15 @@
             this.startBGM();
         }
         stopBGM() {
-            if (this.timerId) clearTimeout(this.timerId);
+            // タイマーをクリアして、フラグを下ろす
+            if (this.timerId) {
+                clearTimeout(this.timerId);
+                this.timerId = null;
+            }
             this.initialized = false;
         }
         playSynth(freq, type, duration, vol, glide = 0) {
-            if (!this.initialized) return;
+            if (!this.initialized || !this.ctx) return;
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
             osc.type = type;
@@ -159,17 +195,45 @@
             this.nextNoteTime = this.ctx.currentTime;
             this.scheduleNote();
         }
-        scheduleNote() {
-            if (isGameOver) return;
-            const tempo = Math.max(60, 140 - (player.level * 5));
+                scheduleNote() {
+            if (isGameOver || !this.initialized) return;
+            
+            // 【中毒性UP】さらに高速なテンポ設定
+            const tempo = Math.min(280, 160 + (player.level * 15)); 
             const secondsPerBeat = 60 / tempo;
-            const scales = [[55, 65, 69, 71], [58, 68, 72, 74], [53, 63, 67, 69], [51, 61, 65, 67], [48, 58, 62, 64]];
-            const currentScale = scales[Math.floor((player.level - 1) / 10) % scales.length];
-            this.playSynth(currentScale[0], 'sawtooth', secondsPerBeat * 1.5, 0.1, 0.1);
-            if (Math.random() > 0.5) {
-                const note = currentScale[Math.floor(Math.random() * currentScale.length)];
-                this.playSynth(note * 2, 'square', secondsPerBeat, 0.05);
+            
+            // 明るく、かつ疾走感のあるメロディパターン
+            const melodyPattern = [60, 64, 67, 72, 74, 76, 79, 81, 79, 76, 74, 72, 67, 64, 62, 60];
+            
+            // --- 1. サイバー・ベース (Sawtooth: 躍動感のある低音) ---
+            // 4拍子の「1拍目」と「2拍目の裏」で、うねるようなリズムを刻む
+            if (this.step % 4 === 0 || this.step % 4 === 2) {
+                this.playSynth(48, 'sawtooth', secondsPerBeat * 0.3, 0.2);
+            } else if (this.step % 4 === 3) {
+                this.playSynth(45, 'sawtooth', secondsPerBeat * 0.2, 0.15);
             }
+
+            // --- 2. メインメロディ (Square: 弾けるようなピコピコ音) ---
+            const melodyFreq = melodyPattern[this.step % melodyPattern.length];
+            if (this.step % 2 === 0) {
+                this.playSynth(melodyFreq, 'square', secondsPerBeat * 0.4, 0.15);
+            }
+
+            // --- 3. 高速アルペジオ (Sine/Triangle: サイバーパンクの疾走感) ---
+            // 8拍に一度、一瞬だけ高音を駆け上がる「上昇音」を入れて、アゲアゲ感を演出
+            if (this.step % 8 === 4) {
+                const arpeggio = [72, 76, 79, 84]; // ド, ミ, ソ, 高いド
+                arpeggio.forEach((note, i) => {
+                    this.playSynth(note, 'sine', 0.1, 0.05);
+                });
+            }
+
+            // --- 4. キラキラ・アクセント (Triangle: 輝きを加える) ---
+            if (this.step % 4 === 3) {
+                this.playSynth(melodyFreq * 2, 'triangle', 0.1, 0.1);
+            }
+
+            this.step++;
             this.nextNoteTime += secondsPerBeat;
             this.timerId = setTimeout(() => this.scheduleNote(), secondsPerBeat * 1000);
         }
@@ -228,9 +292,12 @@
 
     function drawSquare(x, y, color, context = ctx, size = SQ) {
         context.fillStyle = color;
+        context.shadowBlur = 15;
+        context.shadowColor = color;
         context.fillRect(x * size, y * size, size, size);
+        context.shadowBlur = 0;
         context.strokeStyle = 'rgba(255,255,255,0.5)';
-        context.lineWidth = 2;
+        context.lineWidth = 1;
         context.strokeRect(x * size + 1, y * size + 1, size - 2, size - 2);
         context.fillStyle = 'rgba(255, 255, 255, 0.2)';
         context.fillRect(x * size, y * size, size / 2, size / 2);
@@ -239,6 +306,8 @@
     function draw() {
         ctx.fillStyle = '#050505';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // 背景グリッド
         gridOffset = (gridOffset + (player.level * 0.5)) % SQ;
         ctx.strokeStyle = 'rgba(0, 255, 255, 0.05)';
         ctx.lineWidth = 1;
@@ -247,6 +316,7 @@
             let yPos = i * SQ + gridOffset;
             ctx.beginPath(); ctx.moveTo(0, yPos); ctx.lineTo(canvas.width, yPos); ctx.stroke();
         }
+
         arena.forEach((row, y) => { row.forEach((value, x) => { if (value !== 0) drawSquare(x, y, colors[value]); }); });
         if (player.matrix) {
             player.matrix.forEach((row, y) => { row.forEach((value, x) => { if (value !== 0) drawSquare(player.pos.x + x, player.pos.y + y, colors[value]); }); });
@@ -329,13 +399,20 @@
         document.getElementById('level').innerText = player.level;
     }
 
-    function playerDrop() {
+         function playerDrop() {
         player.pos.y++;
         if (collide(arena, player)) {
             player.pos.y--;
             merge(arena, player);
             arenaSweep();
-            if (arena[0].some(val => val !== 0)) {
+            
+            // 【重要】着地した結果、ブロックが画面外(y < 0)に突き抜けたか判定
+            // プレイヤーの座標が0未満、またはパーツのどこかが0未満ならアウト
+            const isOut = player.pos.y < 0 || player.matrix.some((row, y) => 
+                row.some(value => value !== 0 && (player.pos.y + y) < 0)
+            );
+
+            if (isOut) {
                 gameOver();
             } else {
                 playerReset();
@@ -363,7 +440,7 @@
         }
     }
 
-    function playerReset() {
+       function playerReset() {
         const pieces = 'ILJOTSZ';
         if (!player.next) player.next = createPiece(pieces[pieces.length * Math.random() | 0]);
         player.matrix = player.next;
@@ -371,7 +448,8 @@
         player.pos.y = 0;
         player.pos.x = Math.floor(COL / 2) - Math.floor(player.matrix[0].length / 2);
         drawNext();
-        if (collide(arena, player)) gameOver();
+        
+        // ここには何も書かない（判定は playerDrop で行う）
     }
 
     function gameOver() {
@@ -419,7 +497,9 @@
         if (key === 'a') playerMove(-1);
         if (key === 'd') playerMove(1);
         if (key === 'w') playerRotate();
-        if (key === 's' || key === ' ') {
+        if (key === 's') {
+            playerDrop();
+        } else if (key === ' ') {
             while (!collide(arena, player)) player.pos.y++;
             player.pos.y--;
             merge(arena, player);
@@ -431,7 +511,6 @@
         }
     });
 
-    // --- スマホ操作 (画面分割タッチ) ---
     let touchStartX = 0, touchStartY = 0, touchStartTime = 0, longPressTimer;
 
     window.addEventListener('touchstart', (e) => {
@@ -440,43 +519,30 @@
         touchStartX = touch.clientX;
         touchStartY = touch.clientY;
         touchStartTime = Date.now();
-
         longPressTimer = setTimeout(() => {
-            if (Date.now() - touchStartTime < 500) {
-                playerDrop();
-                audio.playDrop();
-            }
+            if (Date.now() - touchStartTime < 500) { playerDrop(); audio.playDrop(); }
         }, 500);
     }, {passive: false});
 
     window.addEventListener('touchend', (e) => {
         if (isGameOver) return;
         clearTimeout(longPressTimer);
-        const touch = e.changedTouches[0];
         const dx = touch.clientX - touchStartX;
         const dy = touch.clientY - touchStartY;
         const threshold = 30;
 
         if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
-            // 画面の左右どちらを触ったか判定
-            const screenMid = window.innerWidth / 2;
-            const isLeftHalf = touch.clientX < screenMid;
-
             if (Math.abs(dx) > Math.abs(dy)) {
-                // 横スワイプ
-                if (dx > threshold) {
-                    // 右スワイプ -> 右回転
-                    playerRotate(); 
-                } else {
-                    // 左スワイプ -> 左回転
-                    // (回転ロジックが逆向きなので、ここでは簡易的に回転を適用)
+                if (dx > threshold) playerRotate(); 
+                else {
                     const oldMatrix = player.matrix;
                     player.matrix = player.matrix[0].map((_, i) => player.matrix.map(row => row[i]).reverse()).reverse();
                     if (collide(arena, player)) player.matrix = oldMatrix; else audio.playRotate();
                 }
             } else {
-                // 縦スワイプ
-                if (dy > threshold) { // 下スワイプ -> ハードドロップ
+                if (dy > threshold) {
+                    playerMove(0); // 左右移動の代わりに、ここでは何もしないか、既存のロジックに合わせる
+                } else if (dy < -threshold) {
                     while (!collide(arena, player)) player.pos.y++;
                     player.pos.y--;
                     merge(arena, player);
@@ -484,18 +550,11 @@
                     if (arena[0].some(val => val !== 0)) { gameOver(); } 
                     else { playerReset(); }
                     audio.playHardDrop();
-                } else if (dy < -threshold) {
-                    // 上スワイプは回転として扱う（既存ロジック）
-                    playerRotate();
                 }
             }
         } else {
-            // タップ操作 (左右半分で移動)
-            if (touch.clientX < window.innerWidth / 2) {
-                playerMove(-1);
-            } else {
-                playerMove(1);
-            }
+            if (touch.clientX < window.innerWidth / 2) playerMove(-1);
+            else playerMove(1);
         }
     }, {passive: false});
 
