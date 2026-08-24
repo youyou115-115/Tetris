@@ -286,27 +286,35 @@ let player = { pos: {x: 0, y: 0}, matrix: null, next: null, score: 0, level: 1, 
     let isGameOver = false;
     let gridOffset = 0;
 
-           class AudioEngine {
+               class AudioEngine {
         constructor() {
             this.ctx = null;
             this.masterGain = null;
+            this.delayNode = null; // 追加：ディレイ用
+            this.filterNode = null; // 追加：フィルター用
             this.initialized = false;
             this.timerId = null;
             this.step = 0;
         }
-        init() {
-            // すでに動いている場合は、一旦完全に止める
+                init() {
             this.stopBGM();
-
             this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            
             this.masterGain = this.ctx.createGain();
+            this.filterNode = this.ctx.createBiquadFilter();
+            this.filterNode.type = 'lowpass';
+            this.filterNode.frequency.value = 3000; // やまびこがない分、少し明るくするために少し上げる
+
+            // --- シンプルなルーティング: Source -> Filter -> Master -> Destination ---
+            this.filterNode.connect(this.masterGain);
             this.masterGain.connect(this.ctx.destination);
-            this.masterGain.gain.value = 0.4;
+
+            this.masterGain.gain.value = 0.5;
+            
             this.initialized = true;
             this.startBGM();
         }
         stopBGM() {
-            // タイマーをクリアして、フラグを下ろす
             if (this.timerId) {
                 clearTimeout(this.timerId);
                 this.timerId = null;
@@ -317,72 +325,78 @@ let player = { pos: {x: 0, y: 0}, matrix: null, next: null, score: 0, level: 1, 
             if (!this.initialized || !this.ctx) return;
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
+            
             osc.type = type;
             osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
             if (glide > 0) osc.frequency.exponentialRampToValueAtTime(freq / 2, this.ctx.currentTime + duration);
+            
             gain.gain.setValueAtTime(vol, this.ctx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+            
             osc.connect(gain);
-            gain.connect(this.masterGain);
+            gain.connect(this.filterNode); // masterGainではなくfilterNodeへ接続
+            
             osc.start();
             osc.stop(this.ctx.currentTime + duration);
         }
+        // ... 他のメソッド（playImpact, playClear等）も、接続先をthis.filterNodeに変更してください
         playImpact(vol = 0.5) {
             this.playSynth(60, 'sine', 0.4, vol);
             this.playSynth(40, 'square', 0.2, vol * 0.5);
         }
         playClear(count) {
-            // 消去音：ジャズ・ピアノの和音（コード）が響くような音
-            // 1行消すごとに、少しずつ音程が上がる「ジャーン」という響き
-            const baseFreqs = [220, 261.63, 329.63, 392.00, 523.25]; // C, E, G, B, C (Cmaj7風)
-            
+            const baseFreqs = [220, 261.63, 329.63, 392.00, 523.25];
             for(let i=0; i<count; i++) {
-                // 複数の音を同時に鳴らして「和音」を作る
                 this.playSynth(baseFreqs[i % 5], 'sine', 0.8, 0.2);
                 this.playSynth(baseFreqs[(i+1) % 5] * 1.2, 'triangle', 0.6, 0.1);
             }
-            // 最後に少しだけ低音の余韻を添える
             this.playSynth(baseFreqs[0] / 2, 'sine', 1.0, 0.2);
         }
         startBGM() {
-            this.nextNoteTime = this.ctx.currentTime;
-            this.scheduleNote();
+             // BGMなし
         }
-                   scheduleNote() {
+               scheduleNote() {
             if (isGameOver || !this.initialized) return;
             
-            // 【ジャズ】少しゆったりとした、スウィング感のあるテンポ
-            const tempo = 110; 
+            // 【Tetris Jazz Lo-fi】 落ち着いた、哀愁漂う8bitジャズ
+            const tempo = 120; // 少し落ち着いたテンポ
             const secondsPerBeat = 60 / tempo;
             
-            // 【ジャズ】テンションを含んだ、少し複雑で美しい音程の並び
-            // C Major 9th / 13th 風の動き
-            const scale = [60, 62, 64, 65, 67, 69, 71, 72, 74, 76]; 
+            // 【テトリス風のコード進行】
+            // 哀愁のある進行 (Am - F - C - G)
+            const chords = [
+                [69, 72, 76, 79], // Am (ラ, ド, ミ, ソ)
+                [65, 69, 72, 76], // F  (ファ, ラ, ド, ミ)
+                [60, 64, 67, 72], // C  (ド, ミ, ソ, シ)
+                [67, 71, 74, 77]  // G  (ソ, シ, レ, ファ)
+            ];
             
-            // --- 1. メロディ (Triangle: ジャズ・ピアノ風の音色) ---
-            // スウィング感を出すため、拍の「裏」に音を置く（シンコペーション）
-            const melodyIdx = (this.step % 8);
-            const melodyFreq = scale[melodyIdx % scale.length];
+            const currentChord = chords[Math.floor(this.step / 4) % chords.length];
             
-            // 拍の「裏」に音を置くことで、ジャズ特有の「タッ・カ」というリズムを作る
-            if (this.step % 2 === 1) {
-                this.playSynth(melodyFreq, 'triangle', secondsPerBeat * 0.6, 0.25);
+            // --- 1. The Iconic Melody (8-bit Square: Clear Lead) ---
+            // テトリスの有名なフレーズを意識した、単音のメロディ
+            // 4拍の中で、音を「置く」タイミングを限定して、空間を作る
+            const melodyPattern = [0, 2, 3, 2, 0, 4, 3, 2]; // 拍ごとの音程インデックス
+            const noteIdx = this.step % 8;
+            
+            // 8分音符のタイミングで、メロディを「ポーン」と鳴らす
+            if (this.step % 2 === 0) {
+                // メロディ音を2オクターブ上で、少し柔らかめに
+                const melodyNote = currentChord[melodyPattern[noteIdx % 8] % 4] * 2;
+                this.playSynth(melodyNote, 'square', 0.3, 0.15);
             }
 
-            // --- 2. コード・バッキング (Sine: 柔らかいピアノの響き) ---
-            // 1拍目と3拍目に、コードの根音（ルート）を置く
+            // --- 2. The Soft Pad (8-bit Triangle: Background Harmony) ---
+            // メロディを邪魔しないよう、コードは「拍の頭」に、かつ「非常に弱く」
             if (this.step % 4 === 0) {
-                this.playSynth(scale[0] / 2, 'sine', secondsPerBeat * 1.5, 0.15);
-            }
-            if (this.step % 4 === 2) {
-                // 3拍目は少し高い音（テンション）を混ぜて、ジャズ感を出す
-                this.playSynth(scale[4] / 2, 'sine', secondsPerBeat * 1.5, 0.12);
+                // 三角波で、コードのルート音を優しく、低めに
+                this.playSynth(currentChord[0] * 1.5, 'triangle', 0.5, 0.05);
             }
 
-            // --- 3. 装飾音 (Sine: 高い音のアクセント) ---
-            // 4拍目の最後に、キラリと光るような高い音を添える
+            // --- 3. The Subtle Accent (8-bit High-Pitch: Bell-like) ---
+            // 拍の終わりに、かすかな「キラッ」とした音を添える
             if (this.step % 4 === 3) {
-                this.playSynth(scale[7] * 2, 'sine', 0.2, 0.1);
+                this.playSynth(currentChord[2] * 2.5, 'square', 0.1, 0.05);
             }
 
             this.step++;
@@ -392,14 +406,19 @@ let player = { pos: {x: 0, y: 0}, matrix: null, next: null, score: 0, level: 1, 
         playMove() { this.playSynth(400, 'sine', 0.05, 0.05); }
         playRotate() { this.playSynth(600, 'sine', 0.1, 0.05); }
         playDrop() { this.playSynth(200, 'sine', 0.1, 0.1); }
-        playHardDrop() { this.playImpact(0.6); }
-       playLand() {
-            // 設置音：短く、少し高めの「コツッ」という音
-            this.playSynth(440, 'triangle', 0.1, 0.1);
+       playHardDrop() {
+            // ハードドロップ：一瞬の鋭い「コンッ！」という音
+            this.playSynth(1800, 'square', 0.08, 0.4);
         }
-        playGameOver() {
-            this.playSynth(100, 'sawtooth', 1.0, 0.4);
-            this.playSynth(50, 'sawtooth', 1.5, 0.4);
+        playLand() {
+            // 設置音：ライン消去のような、低く短い「ドンッ」という音
+            this.playSynth(30, 'square', 0.1, 0.4);
+            this.playSynth(120, 'square', 0.05, 0.3);
+        }
+         playHardDrop() {
+            // ハードドロップ：ライン消去よりもさらに重い「ドォーン！」という音
+            this.playSynth(60, 'square', 0.1, 0.5);
+            this.playSynth(120, 'square', 0.05, 0.3);
         }
     }
 
@@ -624,6 +643,9 @@ function draw() {
             player.pos.y--; // 衝突した位置に戻す
             merge(arena, player); // 盤面に固定
             arenaSweep(); // ライン消去
+
+              // 【追加】着地した瞬間に音を鳴らす
+            audio.playLand(); 
             
             // 着地した結果、一番上の行にブロックが残った場合もゲームオーバー
             if (arena[0].some(val => val !== 0)) {
