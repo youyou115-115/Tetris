@@ -585,52 +585,55 @@ function draw() {
         }
     }
     if (rowCount > 0) {
-        player.combo++;
-        player.score += rowCount * 100 * player.level * player.combo;
-        const newLevel = Math.floor(player.score / 1000) + 1;
-        if (newLevel > player.level) player.level = newLevel;
+            player.combo++;
+            player.score += rowCount * 100 * player.level * player.combo;
+            const newLevel = Math.floor(player.score / 1000) + 1;
+            if (newLevel > player.level) player.level = newLevel;
 
-        const popup = document.getElementById('combo-popup');
-        popup.style.display = 'block';
-        
-         // 【修正】コンボ文字が「Canvasの外（上）」から飛び出す演出
-        popup.style.top = "-60px"; 
-        
-        // テキスト設定
-        if (rowCount === 1) { 
-            popup.innerText = "CLEARED!"; 
-            popup.style.color = "#0ff"; 
-            popup.style.fontSize = "40px";
-        } else if (rowCount === 2) { 
-            popup.innerText = "DOUBLE!!"; 
-            popup.style.color = "#f0f"; 
-            popup.style.fontSize = "50px";
-        } else if (rowCount === 3) { 
-            popup.innerText = "TRIPLE!!!"; 
-            popup.style.color = "#ff0"; 
-            popup.style.fontSize = "60px";
-        } else { 
-            popup.innerText = "ULTRA " + rowCount + "!!!"; 
-            popup.style.color = "#f00"; 
-            popup.style.fontSize = "70px";
+            const popup = document.getElementById('combo-popup');
+            // 【修正】popupが存在する場合のみ、スタイル操作を行う
+            if (popup) {
+                popup.style.display = 'block';
+                
+                // テキスト設定
+                if (rowCount === 1) { 
+                    popup.innerText = "CLEARED!"; 
+                    popup.style.color = "#0ff"; 
+                    popup.style.fontSize = "40px";
+                } else if (rowCount === 2) { 
+                    popup.innerText = "DOUBLE!!"; 
+                    popup.style.color = "#f0f"; 
+                    popup.style.fontSize = "50px";
+                } else if (rowCount === 3) { 
+                    popup.innerText = "TRIPLE!!!"; 
+                    popup.style.color = "#ff0"; 
+                    popup.style.fontSize = "60px";
+                } else { 
+                    popup.innerText = "ULTRA " + rowCount + "!!!"; 
+                    popup.style.color = "#f00"; 
+                    popup.style.fontSize = "70px";
+                }
+
+                // アニメーション
+                popup.animate([
+                    { transform: 'translateX(-50%) scale(0.5) translateY(0)', opacity: 0 },
+                    { transform: 'translateX(-50%) scale(1.2) translateY(-20px)', opacity: 1 },
+                    { transform: 'translateX(-50%) scale(1) translateY(-40px)', opacity: 0 }
+                ], {
+                    duration: 600,
+                    easing: 'ease-out'
+                });
+
+                setTimeout(() => {
+                    if (popup) popup.style.display = 'none';
+                }, 600);
+            }
+
+            updateUI();
+            audio.playClear(rowCount);
+        } else {
+            player.combo = 0;
         }
-
-        // 【修正】アニメーション：Canvasの外で「飛び出して消える」
-        popup.animate([
-            { transform: 'translateX(-50%) scale(0.5) translateY(0)', opacity: 0 },
-            { transform: 'translateX(-50%) scale(1.2) translateY(-20px)', opacity: 1 },
-            { transform: 'translateX(-50%) scale(1) translateY(-40px)', opacity: 0 }
-        ], {
-            duration: 600,
-            easing: 'ease-out'
-        });
-
-        setTimeout(() => popup.style.display = 'none', 600);
-        updateUI();
-        audio.playClear(rowCount);
-    } else {
-        player.combo = 0;
-    }
     return rowCount;
 }
 
