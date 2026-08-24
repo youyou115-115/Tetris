@@ -306,7 +306,7 @@ let player = { pos: {x: 0, y: 0}, matrix: null, next: null, score: 0, level: 1, 
     let isGameOver = false;
     let gridOffset = 0;
 
-               class AudioEngine {
+   class AudioEngine {
         constructor() {
             this.ctx = null;
             this.masterGain = null;
@@ -440,9 +440,14 @@ let player = { pos: {x: 0, y: 0}, matrix: null, next: null, score: 0, level: 1, 
             this.playSynth(60, 'square', 0.1, 0.5);
             this.playSynth(120, 'square', 0.05, 0.3);
         }
+
+        playGameOver() {
+            this.playSynth(100, 'sawtooth', 0.5, 0.5);
+            this.playSynth(50, 'square', 1.0, 0.5);
+        }
     }
 
-    const audio = new AudioEngine();
+   window.audio = new AudioEngine(); 
 
     class LightningParticle {
         constructor(x, y, color, intensity) {
@@ -717,13 +722,15 @@ function draw() {
     }
 
     function gameOver() {
-        isGameOver = true;
-        audio.playGameOver();
-        audio.stopBGM();
-        updateHighScore();
-        document.getElementById('gameover-screen').style.display = 'flex';
-        document.getElementById('final-score').innerText = player.score;
+    isGameOver = true;
+    if (window.audio) {
+        window.audio.playGameOver();
+        window.audio.stopBGM();
     }
+    updateHighScore();
+    document.getElementById('gameover-screen').style.display = 'flex';
+    document.getElementById('final-score').innerText = player.score;
+}
 
     function updateHighScore() {
         const highScore = localStorage.getItem('tetris_high_score') || 0;
