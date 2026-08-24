@@ -17,35 +17,36 @@
             font-family: 'Arial Black', sans-serif;
             touch-action: none;
         }
-        #game-container { 
-            position: relative; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            width: 100%; 
-            height: 100%;
-            background: radial-gradient(circle, #001a1a 0%, #000 100%);
-        }
-        #ui-container { 
-            display: flex; 
-            width: 95%; 
-            justify-content: space-between; 
-            padding: 10px;
-            z-index: 10;
-        }
-        #ui { text-align: center; }
-        .stat-label { font-size: 10px; color: var(--neon-cyan); text-transform: uppercase; letter-spacing: 1px; }
-        .stat-value { font-size: 18px; color: #fff; text-shadow: 0 0 10px var(--neon-cyan); }
-        
-        canvas { 
-            border: 2px solid rgba(0, 255, 255, 0.3); 
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.1);
-            background: #050505;
-            /* レスポンシブ対応: 画面に収まるように調整 */
-            max-width: 90vw;
-            max-height: 70vh;
-            object-fit: contain;
-        }
+        /* styleタグ内を以下のように修正 */
+#game-container { 
+    position: relative; 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: flex-start; /* 上寄せに変更 */
+    width: 100%; 
+    height: 100%;
+    background: radial-gradient(circle, #001a1a 0%, #000 100%);
+    padding-top: 10px; /* 上部に少し余白 */
+}
+
+#ui-container { 
+    display: flex; 
+    width: 95%; 
+    justify-content: space-around; /* 離れすぎないよう調整 */
+    align-items: center;
+    padding: 5px;
+    z-index: 10;
+}
+
+canvas { 
+    border: 2px solid rgba(0, 255, 255, 0.3); 
+    box-shadow: 0 0 30px rgba(0, 255, 255, 0.1);
+    background: #050505;
+    max-width: 90vw;
+    max-height: 75vh; /* UIの分、少し高さを抑える */
+    object-fit: contain;
+}
 
         .overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -511,52 +512,73 @@
         }
     });
 
-    let touchStartX = 0, touchStartY = 0, touchStartTime = 0, longPressTimer;
+    // scriptタグ内の該当箇所を修正
 
-    window.addEventListener('touchstart', (e) => {
-        if (isGameOver) return;
-        const touch = e.touches[0];
-        touchStartX = touch.clientX;
-        touchStartY = touch.clientY;
-        touchStartTime = Date.now();
-        longPressTimer = setTimeout(() => {
-            if (Date.now() - touchStartTime < 500) { playerDrop(); audio.playDrop(); }
-        }, 500);
-    }, {passive: false});
+// --- スマホ操作の修正 ---
+let touchStartX = 0, touchStartY = 0, touchStartTime = 0, longPressTimer;
 
-    window.addEventListener('touchend', (e) => {
-        if (isGameOver) return;
-        clearTimeout(longPressTimer);
-        const dx = touch.clientX - touchStartX;
-        const dy = touch.clientY - touchStartY;
-        const threshold = 30;
+window.addEventListener('touchstart', (e) => {
+    if (isGameOver) return;
+    const touch = e.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+    touchStartTime = Date.now();
+    
+    // 長押しでソフトドロップ
+    longPressTimer = setTimeout(() => {
+        if (Date.now() - touchStartTime < 500) {
+            playerDrop(); // 1段落とる
+            audio.playDrop();
+        }
+    }, 500);
+}, {passive: false});
 
-        if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
-            if (Math.abs(dx) > Math.abs(dy)) {
-                if (dx > threshold) playerRotate(); 
-                else {
-                    const oldMatrix = player.matrix;
-                    player.matrix = player.matrix[0].map((_, i) => player.matrix.map(row => row[i]).reverse()).reverse();
-                    if (collide(arena, player)) player.matrix = oldMatrix; else audio.playRotate();
-                }
+window.addEventListener('touchend', (e) => {
+    if (isGameOver) return;
+    clearTimeout(longPressTimer);
+    
+    const touch = e.changedTouches[0];
+    const dx = touch.clientX - touchStartX;
+    const dy = touch.clientY - touchStartY;
+    const threshold = 30;
+
+    // フリック判定
+    if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
+        if (Math.abs(dx) > Math.abs(dy)) {
+            // 左右フリック
+            if (dx > threshold) {
+                playerRotate(); 
             } else {
-                if (dy > threshold) {
-                    playerMove(0); // 左右移動の代わりに、ここでは何もしないか、既存のロジックに合わせる
-                } else if (dy < -threshold) {
-                    while (!collide(arena, player)) player.pos.y++;
-                    player.pos.y--;
-                    merge(arena, player);
-                    arenaSweep();
-                    if (arena[0].some(val => val !== 0)) { gameOver(); } 
-                    else { playerReset(); }
-                    audio.playHardDrop();
-                }
+                // 左フリック（回転）
+                const oldMatrix = player.matrix;
+                player.matrix = player.matrix[0].map((_, i) => player.matrix.map(row => row[i]).reverse()).reverse();
+                if (collide(arena, player)) player.matrix = oldMatrix; else audio.playRotate();
             }
         } else {
-            if (touch.clientX < window.innerWidth / 2) playerMove(-1);
-            else playerMove(1);
+            // 上下フリック
+            if (dy > threshold) {
+                // 下フリック：ハードドロップ
+                while (!collide(arena, player)) player.pos.y++;
+                player.pos.y--;
+                merge(arena, player);
+                arenaSweep();
+                if (arena[0].some(val => val !== 0)) { gameOver(); } 
+                else { playerReset(); }
+                audio.playHardDrop();
+            } else if (dy < -threshold) {
+                // 上フリック：回転
+                playerRotate();
+            }
         }
-    }, {passive: false});
+    } else {
+        // タップ判定（左右移動）
+        if (touch.clientX < window.innerWidth / 2) {
+            playerMove(-1);
+        } else {
+            playerMove(1);
+        }
+    }
+}, {passive: false});
 
     playerReset();
     draw();
