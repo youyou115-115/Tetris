@@ -10,13 +10,26 @@
             --neon-magenta: #ff00ff;
             --neon-yellow: #ffff00;
         }
-        body { 
-            margin: 0; background: #000; color: #fff; 
-            display: flex; justify-content: center; align-items: center; 
-            height: 100vh; width: 100vw; overflow: hidden; 
-            font-family: 'Arial Black', sans-serif;
-            touch-action: none;
-        }
+        /* styleタグ内を修正 */
+body { 
+    margin: 0; 
+    background: #000; 
+    color: #fff; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    height: 100vh; 
+    width: 100vw; 
+    overflow: hidden; 
+    font-family: 'Arial Black', sans-serif;
+    touch-action: none; /* これが重要：ブラウザのデフォルトのスクロールやズームを無効化 */
+    
+    /* 【追加】テキスト選択を禁止して、青くなるのを防ぐ */
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
         /* styleタグ内を以下のように修正 */
 #game-container { 
     position: relative; 
@@ -190,49 +203,57 @@ let player = { pos: {x: 0, y: 0}, matrix: null, next: null, score: 0, level: 1, 
             this.playSynth(40, 'square', 0.2, vol * 0.5);
         }
         playClear(count) {
-            for(let i=0; i<count; i++) this.playSynth(220 * (i + 1) * 2, 'sawtooth', 0.5, 0.2);
-            this.playImpact(0.4);
+            // 消去音：ジャズ・ピアノの和音（コード）が響くような音
+            // 1行消すごとに、少しずつ音程が上がる「ジャーン」という響き
+            const baseFreqs = [220, 261.63, 329.63, 392.00, 523.25]; // C, E, G, B, C (Cmaj7風)
+            
+            for(let i=0; i<count; i++) {
+                // 複数の音を同時に鳴らして「和音」を作る
+                this.playSynth(baseFreqs[i % 5], 'sine', 0.8, 0.2);
+                this.playSynth(baseFreqs[(i+1) % 5] * 1.2, 'triangle', 0.6, 0.1);
+            }
+            // 最後に少しだけ低音の余韻を添える
+            this.playSynth(baseFreqs[0] / 2, 'sine', 1.0, 0.2);
         }
         startBGM() {
             this.nextNoteTime = this.ctx.currentTime;
             this.scheduleNote();
         }
-                scheduleNote() {
+                   scheduleNote() {
             if (isGameOver || !this.initialized) return;
             
-            // 【中毒性UP】さらに高速なテンポ設定
-            const tempo = Math.min(280, 160 + (player.level * 15)); 
+            // 【ジャズ】少しゆったりとした、スウィング感のあるテンポ
+            const tempo = 110; 
             const secondsPerBeat = 60 / tempo;
             
-            // 明るく、かつ疾走感のあるメロディパターン
-            const melodyPattern = [60, 64, 67, 72, 74, 76, 79, 81, 79, 76, 74, 72, 67, 64, 62, 60];
+            // 【ジャズ】テンションを含んだ、少し複雑で美しい音程の並び
+            // C Major 9th / 13th 風の動き
+            const scale = [60, 62, 64, 65, 67, 69, 71, 72, 74, 76]; 
             
-            // --- 1. サイバー・ベース (Sawtooth: 躍動感のある低音) ---
-            // 4拍子の「1拍目」と「2拍目の裏」で、うねるようなリズムを刻む
-            if (this.step % 4 === 0 || this.step % 4 === 2) {
-                this.playSynth(48, 'sawtooth', secondsPerBeat * 0.3, 0.2);
-            } else if (this.step % 4 === 3) {
-                this.playSynth(45, 'sawtooth', secondsPerBeat * 0.2, 0.15);
+            // --- 1. メロディ (Triangle: ジャズ・ピアノ風の音色) ---
+            // スウィング感を出すため、拍の「裏」に音を置く（シンコペーション）
+            const melodyIdx = (this.step % 8);
+            const melodyFreq = scale[melodyIdx % scale.length];
+            
+            // 拍の「裏」に音を置くことで、ジャズ特有の「タッ・カ」というリズムを作る
+            if (this.step % 2 === 1) {
+                this.playSynth(melodyFreq, 'triangle', secondsPerBeat * 0.6, 0.25);
             }
 
-            // --- 2. メインメロディ (Square: 弾けるようなピコピコ音) ---
-            const melodyFreq = melodyPattern[this.step % melodyPattern.length];
-            if (this.step % 2 === 0) {
-                this.playSynth(melodyFreq, 'square', secondsPerBeat * 0.4, 0.15);
+            // --- 2. コード・バッキング (Sine: 柔らかいピアノの響き) ---
+            // 1拍目と3拍目に、コードの根音（ルート）を置く
+            if (this.step % 4 === 0) {
+                this.playSynth(scale[0] / 2, 'sine', secondsPerBeat * 1.5, 0.15);
+            }
+            if (this.step % 4 === 2) {
+                // 3拍目は少し高い音（テンション）を混ぜて、ジャズ感を出す
+                this.playSynth(scale[4] / 2, 'sine', secondsPerBeat * 1.5, 0.12);
             }
 
-            // --- 3. 高速アルペジオ (Sine/Triangle: サイバーパンクの疾走感) ---
-            // 8拍に一度、一瞬だけ高音を駆け上がる「上昇音」を入れて、アゲアゲ感を演出
-            if (this.step % 8 === 4) {
-                const arpeggio = [72, 76, 79, 84]; // ド, ミ, ソ, 高いド
-                arpeggio.forEach((note, i) => {
-                    this.playSynth(note, 'sine', 0.1, 0.05);
-                });
-            }
-
-            // --- 4. キラキラ・アクセント (Triangle: 輝きを加える) ---
+            // --- 3. 装飾音 (Sine: 高い音のアクセント) ---
+            // 4拍目の最後に、キラリと光るような高い音を添える
             if (this.step % 4 === 3) {
-                this.playSynth(melodyFreq * 2, 'triangle', 0.1, 0.1);
+                this.playSynth(scale[7] * 2, 'sine', 0.2, 0.1);
             }
 
             this.step++;
@@ -243,7 +264,10 @@ let player = { pos: {x: 0, y: 0}, matrix: null, next: null, score: 0, level: 1, 
         playRotate() { this.playSynth(600, 'sine', 0.1, 0.05); }
         playDrop() { this.playSynth(200, 'sine', 0.1, 0.1); }
         playHardDrop() { this.playImpact(0.6); }
-        playLand() { this.playSynth(150, 'triangle', 0.1, 0.1); }
+       playLand() {
+            // 設置音：短く、少し高めの「コツッ」という音
+            this.playSynth(440, 'triangle', 0.1, 0.1);
+        }
         playGameOver() {
             this.playSynth(100, 'sawtooth', 1.0, 0.4);
             this.playSynth(50, 'sawtooth', 1.5, 0.4);
@@ -402,22 +426,36 @@ let player = { pos: {x: 0, y: 0}, matrix: null, next: null, score: 0, level: 1, 
     }
 
 // script内のplayerDrop関数を修正
-function playerDrop() {
-    player.pos.y++;
-    if (collide(arena, player)) {
-        player.pos.y--;
-        merge(arena, player);
-        arenaSweep();
+    function playerDrop() {
+        player.pos.y++;
         
-        // 【修正】着地した結果、一番上の行(y=0)にパーツが残った場合のみゲームオーバー
-        // 「突き抜け」の判定は update 側で行うので、ここでは「積み上がり」だけを見る
-        if (arena[0].some(val => val !== 0)) {
+        // 1. まず、プレイヤーが画面外（y < 0）に突き抜けたかチェック
+        // これが「枠を超えた」判定です
+        const isOut = player.pos.y < 0 || player.matrix.some((row, y) => 
+            row.some(value => value !== 0 && (player.pos.y + y) < 0)
+        );
+
+        if (isOut) {
             gameOver();
-        } else {
-            playerReset();
+            return; // ここで終了
         }
+
+        // 2. 衝突判定（着地判定）
+        if (collide(arena, player)) {
+            player.pos.y--; // 衝突した位置に戻す
+            merge(arena, player); // 盤面に固定
+            arenaSweep(); // ライン消去
+            
+            // 着地した結果、一番上の行にブロックが残った場合もゲームオーバー
+            if (arena[0].some(val => val !== 0)) {
+                gameOver();
+            } else {
+                playerReset();
+            }
+        }
+        
+        dropCounter = 0;
     }
-}
     function playerMove(dir) {
     player.isBoostMode = false; // 【追加】操作したらブースト解除
     player.pos.x += dir;
@@ -525,43 +563,46 @@ function playerDrop() {
     // scriptタグ内の該当箇所を修正
 
 // --- スマホ操作の修正 ---
+document.addEventListener('contextmenu', event => event.preventDefault());
+
 let touchStartX = 0, touchStartY = 0, touchStartTime = 0, longPressTimer;
 
 window.addEventListener('touchstart', (e) => {
+    // ブラウザのデフォルト動作（ズーム、スクロール、選択）を防止
+    if (e.cancelable) e.preventDefault();
+
     if (isGameOver) return;
     const touch = e.touches[0];
     touchStartX = touch.clientX;
     touchStartY = touch.clientY;
     touchStartTime = Date.now();
-    
-    // 長押しでソフトドロップ
+
+    // 長押し：ソフトドロップ
     longPressTimer = setTimeout(() => {
         if (Date.now() - touchStartTime < 500) {
-            playerDrop(); // 1段落とる
+            playerDrop();
             audio.playDrop();
         }
     }, 500);
 }, {passive: false});
 
-// script内のtouchendイベントリスナー内を修正
 window.addEventListener('touchend', (e) => {
+    // ブラウザのデフォルト動作を防止
+    if (e.cancelable) e.preventDefault();
+
     if (isGameOver) return;
     clearTimeout(longPressTimer);
+    
     const touch = e.changedTouches[0];
     const dx = touch.clientX - touchStartX;
     const dy = touch.clientY - touchStartY;
     const threshold = 30;
 
+    // フリック判定
     if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
         if (Math.abs(dx) > Math.abs(dy)) {
-            // 左右フリック
-            if (dx > threshold) {
-                playerRotate(); 
-            } else {
-                const oldMatrix = player.matrix;
-                player.matrix = player.matrix[0].map((_, i) => player.matrix.map(row => row[i]).reverse()).reverse();
-                if (collide(arena, player)) player.matrix = oldMatrix; else audio.playRotate();
-            }
+            // 左右フリック：回転
+            playerRotate(); 
         } else {
             // 上下フリック
             if (dy > threshold) {
@@ -570,20 +611,24 @@ window.addEventListener('touchend', (e) => {
                 player.pos.y--;
                 merge(arena, player);
                 arenaSweep();
-                if (player.pos.y < 0 || arena[0].some(val => val !== 0)) { gameOver(); } 
-                else { playerReset(); }
+                if (player.pos.y < 0 || arena[0].some(val => val !== 0)) { 
+                    gameOver(); 
+                } else { 
+                    playerReset(); 
+                }
                 audio.playHardDrop();
             } else if (dy < -threshold) {
-                // 【修正】上フリック：ブーストモード発動！
-                player.isBoostMode = true;
-                playerRotate(); 
+                // 上フリック：回転
+                playerRotate();
             }
         }
     } else {
-        // タップ（左右移動）
-        player.isBoostMode = false; // 【追加】タップでも解除
-        if (touch.clientX < window.innerWidth / 2) playerMove(-1);
-        else playerMove(1);
+        // タップ判定：左右移動
+        if (touch.clientX < window.innerWidth / 2) {
+            playerMove(-1);
+        } else {
+            playerMove(1);
+        }
     }
 }, {passive: false});
 
