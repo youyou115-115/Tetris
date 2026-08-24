@@ -213,6 +213,42 @@ canvas {
         50% { transform: translate(-2px, -2px); }
         100% { transform: translate(2px, -2px); }
     }
+
+/* 追加：オーバーロード演出用 */
+#overdrive-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 0, 0, 0.4);
+    display: none; /* 通常は非表示 */
+    justify-content: center;
+    align-items: center;
+    z-index: 3000;
+    pointer-events: none;
+    animation: flash-red 0.2s infinite;
+}
+
+@keyframes flash-red {
+    0% { background: rgba(255, 0, 0, 0.4); }
+    50% { background: rgba(255, 0, 0, 0.7); }
+    100% { background: rgba(255, 0, 0, 0.4); }
+}
+
+#overdrive-text {
+    font-family: 'Permanent Marker', cursive;
+    font-size: 80px;
+    color: #fff;
+    text-shadow: 0 0 20px #fff, 0 0 40px #f00, 0 0 60px #f00;
+    transform: scale(1.5);
+    animation: pulse 0.5s infinite alternate;
+}
+
+@keyframes pulse {
+    from { transform: scale(1.2) rotate(-5deg); }
+    to { transform: scale(1.5) rotate(5deg); }
+}
 </style>
 </head>
 <body>
@@ -229,6 +265,7 @@ canvas {
             <div class="stat-label">NEXT</div>
             <canvas id="next" width="60" height="60"></canvas>
         </div>
+        
     </div>
 
     <!-- ゲーム画面エリア -->
@@ -275,6 +312,12 @@ canvas {
         <button onclick="window.startGame()" ontouchstart="window.startGame()" style="margin-top: 20px;">RETRY</button>
     </div>
 </div>
+         <div id="overdrive-overlay">
+            <h1 id="overdrive-text">OVERDRIVE!!</h1>
+        </div>
+    </div>
+
+
 
 <script type="module">
     const canvas = document.getElementById('tetris');
@@ -307,7 +350,7 @@ let player = { pos: {x: 0, y: 0}, matrix: null, next: null, score: 0, level: 1, 
     let dropInterval = 1000;
     let isGameOver = false;
     let gridOffset = 0;
-
+    let overdriveTimer = null;
    class AudioEngine {
         constructor() {
             this.ctx = null;
@@ -600,9 +643,9 @@ function draw() {
         }
 
         // 【重要】rowCountが1以上の時だけ、確実にポップアップ処理を行う
-        if (rowCount > 0) {
+         if (rowCount > 0) {
             player.combo += rowCount; // コンボ加算
-            player.score += rowCount * 100 * player.level * player.combo;
+            player.score += rowCount * 100 * player.combo; // 【修正】レベルによる加速を廃止
             const newLevel = Math.floor(player.score / 1000) + 1;
             if (newLevel > player.level) player.level = newLevel;
 
@@ -746,17 +789,36 @@ function draw() {
     lastTime = time;
     dropCounter += deltaTime;
 
-    // --- 【追加】毎フレーム、画面外への突き抜けをチェック ---
-    // プレイヤーの座標がマイナスになったら、即ゲームオーバー
+    // 1. 速度計算（10msを限界値とする）
+    const currentInterval = player.isBoostMode 
+        ? 100 
+        : (1000 - (player.level * 10));     
+    const overdriveOverlay = document.getElementById('overdrive-overlay');
+    
+    // --- 【修正】オーバーロード演出の判定 ---
+    // 速度が 10ms を切った瞬間に、演出を開始して即座にタイトルへ
+    if (currentInterval <= 0) { 
+        if (overdriveOverlay) overdriveOverlay.style.display = 'flex';
+        
+        // 演出を見せるために、ごく短い時間（例：0.5秒）だけ表示してタイトルへ
+        // もし「演出なしで即タイトル」なら setTimeout なしで resetToTitle() を呼ぶ
+        setTimeout(() => {
+            resetToTitle();
+        }, 1000); // 0.5秒だけ「OVERDRIVE!!」を見せてから崩壊
+        
+        // 二重に呼ばれないように、このフレームでの処理を止める
+        return; 
+    } else {
+        if (overdriveOverlay) overdriveOverlay.style.display = 'none';
+    }
+
+    // 2. プレイヤーの座標チェック
     if (player.pos.y < 0) {
         gameOver();
         return;
     }
 
-     const currentInterval = player.isBoostMode 
-        ? 100 
-        : Math.max(250, 1000 - (player.level * 50)); 
-
+    // 3. 落下処理
     if (dropCounter >= currentInterval) {
         playerDrop();
         dropCounter -= currentInterval; 
@@ -764,6 +826,32 @@ function draw() {
     draw();
     requestAnimationFrame(update);
 }
+// --- 追加：リセット関数の修正 ---
+function resetToTitle() {
+    if (overdriveTimer) {
+        clearTimeout(overdriveTimer);
+        overdriveTimer = null;
+    }
+
+    isGameOver = true; 
+    document.getElementById('title-screen').style.display = 'flex';
+    document.getElementById('gameover-screen').style.display = 'none';
+    document.getElementById('overdrive-overlay').style.display = 'none';
+    
+    arena = Array.from({ length: ROW }, () => Array(COL).fill(0));
+    player.score = 0; 
+    player.level = 1; 
+    player.combo = 0; 
+    player.next = null;
+    particles = [];
+    
+    updateUI();
+    
+    isGameOver = false;
+    playerReset();
+    update();
+}
+
     window.startGame = function() {
         audio.init();
         arena = Array.from({ length: ROW }, () => Array(COL).fill(0));
