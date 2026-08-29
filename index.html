@@ -92,17 +92,19 @@ canvas {
     border: 3px solid rgba(0, 255, 255, 0.5);
     box-shadow: 0 0 20px rgba(0, 255, 255, 0.4), inset 0 0 15px rgba(0, 255, 255, 0.2);
     background: #050505;
-    /* 【修正】スマホで画面いっぱいに、かつアスペクト比を維持して表示 */
-    width: 100%; 
-    height: auto;
+    width: 100%; /* 親要素の幅（max-width: 450px）に合わせる */
+    height: auto; /* アスペクト比を維持 */
     display: block;
 }
 
 /* コンテナが画面からはみ出さないように調整 */
 #game-container {
     width: 100%;
-    max-width: 450px; /* スマホの横幅に合わせる */
+    max-width: 450px; /* PCと同じ最大幅 */
     margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
     /* タイトル画面：Canvasの真ん中に重なる */
@@ -269,8 +271,8 @@ canvas {
     </div>
 
     <!-- ゲーム画面エリア -->
-    <div class="canvas-wrapper" style="position: relative; display: inline-block; width: 100%; max-width: 400px;">
-        <canvas id="tetris"></canvas>
+<div class="canvas-wrapper">
+    <canvas id="tetris"></canvas>
         
          <!-- タイトル画面：Canvasの真ん中に重なる -->
         <div id="title-screen" class="overlay">
@@ -352,145 +354,143 @@ let player = { pos: {x: 0, y: 0}, matrix: null, next: null, score: 0, level: 1, 
     let gridOffset = 0;
     let overdriveTimer = null;
    class AudioEngine {
-        constructor() {
-            this.ctx = null;
-            this.masterGain = null;
-            this.delayNode = null; // 追加：ディレイ用
-            this.filterNode = null; // 追加：フィルター用
-            this.initialized = false;
-            this.timerId = null;
-            this.step = 0;
+    constructor() {
+        this.ctx = null;
+        this.masterGain = null;
+        this.filterNode = null;
+        this.initialized = false;
+        this.timerId = null;
+        this.step = 0;
+        this.nextNoteTime = 0;
+    }
+
+async init() {
+    if (this.ctx) {
+        if (this.ctx.state === 'suspended') {
+            await this.ctx.resume();
         }
-                init() {
-            this.stopBGM();
-            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-            
-            this.masterGain = this.ctx.createGain();
-            this.filterNode = this.ctx.createBiquadFilter();
-            this.filterNode.type = 'lowpass';
-            this.filterNode.frequency.value = 3000; // やまびこがない分、少し明るくするために少し上げる
-
-            // --- シンプルなルーティング: Source -> Filter -> Master -> Destination ---
-            this.filterNode.connect(this.masterGain);
-            this.masterGain.connect(this.ctx.destination);
-
-            this.masterGain.gain.value = 0.5;
-            
+        // 重要：isGameOverがfalseの状態で、BGMが止まっていたら再開させる
+        if (!this.initialized || this.ctx.state === 'suspended') {
             this.initialized = true;
             this.startBGM();
         }
-        stopBGM() {
-            if (this.timerId) {
-                clearTimeout(this.timerId);
-                this.timerId = null;
-            }
-            this.initialized = false;
+        return;
+    }
+
+    // 新しく AudioContext を作る（初回のみ）
+    try {
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        this.masterGain = this.ctx.createGain();
+        this.filterNode = this.ctx.createBiquadFilter();
+        this.filterNode.type = 'lowpass';
+        this.filterNode.frequency.value = 1500;
+
+        this.filterNode.connect(this.masterGain);
+        this.masterGain.connect(this.ctx.destination);
+        this.masterGain.gain.value = 0.3;
+        
+        this.initialized = true;
+        this.startBGM();
+        console.log("AudioContext initialized");
+    } catch (e) {
+        console.error("AudioContext error:", e);
+    }
+}
+   async stopBGM() {
+        if (this.timerId) {
+            clearTimeout(this.timerId);
+            this.timerId = null;
         }
-        playSynth(freq, type, duration, vol, glide = 0) {
-            if (!this.initialized || !this.ctx) return;
-            const osc = this.ctx.createOscillator();
-            const gain = this.ctx.createGain();
-            
-            osc.type = type;
-            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-            if (glide > 0) osc.frequency.exponentialRampToValueAtTime(freq / 2, this.ctx.currentTime + duration);
-            
-            gain.gain.setValueAtTime(vol, this.ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
-            
-            osc.connect(gain);
-            gain.connect(this.filterNode); // masterGainではなくfilterNodeへ接続
-            
-            osc.start();
-            osc.stop(this.ctx.currentTime + duration);
+        if (this.ctx) {
+            await this.ctx.close(); // コンテキストを完全に閉じる
+            this.ctx = null;
         }
-        // ... 他のメソッド（playImpact, playClear等）も、接続先をthis.filterNodeに変更してください
-        playImpact(vol = 0.5) {
-            this.playSynth(60, 'sine', 0.4, vol);
-            this.playSynth(40, 'square', 0.2, vol * 0.5);
+        this.initialized = false;
+        this.step = 0;
+    }
+
+    playSynth(freq, type, duration, vol, glide = 0) {
+        if (!this.initialized || !this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        if (glide > 0) {
+            osc.frequency.exponentialRampToValueAtTime(freq / 2, this.ctx.currentTime + duration);
         }
-        playClear(count) {
-            const baseFreqs = [220, 261.63, 329.63, 392.00, 523.25];
-            for(let i=0; i<count; i++) {
-                this.playSynth(baseFreqs[i % 5], 'sine', 0.8, 0.2);
-                this.playSynth(baseFreqs[(i+1) % 5] * 1.2, 'triangle', 0.6, 0.1);
-            }
-            this.playSynth(baseFreqs[0] / 2, 'sine', 1.0, 0.2);
-        }
+        
+        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+        
+        osc.connect(gain);
+        gain.connect(this.filterNode);
+        
+        osc.start();
+        osc.stop(this.ctx.currentTime + duration);
+    }
+
         startBGM() {
-             // BGMなし
-        }
-               scheduleNote() {
-            if (isGameOver || !this.initialized) return;
-            
-            // 【Tetris Jazz Lo-fi】 落ち着いた、哀愁漂う8bitジャズ
-            const tempo = 120; // 少し落ち着いたテンポ
-            const secondsPerBeat = 60 / tempo;
-            
-            // 【テトリス風のコード進行】
-            // 哀愁のある進行 (Am - F - C - G)
-            const chords = [
-                [69, 72, 76, 79], // Am (ラ, ド, ミ, ソ)
-                [65, 69, 72, 76], // F  (ファ, ラ, ド, ミ)
-                [60, 64, 67, 72], // C  (ド, ミ, ソ, シ)
-                [67, 71, 74, 77]  // G  (ソ, シ, レ, ファ)
-            ];
-            
-            const currentChord = chords[Math.floor(this.step / 4) % chords.length];
-            
-            // --- 1. The Iconic Melody (8-bit Square: Clear Lead) ---
-            // テトリスの有名なフレーズを意識した、単音のメロディ
-            // 4拍の中で、音を「置く」タイミングを限定して、空間を作る
-            const melodyPattern = [0, 2, 3, 2, 0, 4, 3, 2]; // 拍ごとの音程インデックス
-            const noteIdx = this.step % 8;
-            
-            // 8分音符のタイミングで、メロディを「ポーン」と鳴らす
-            if (this.step % 2 === 0) {
-                // メロディ音を2オクターブ上で、少し柔らかめに
-                const melodyNote = currentChord[melodyPattern[noteIdx % 8] % 4] * 2;
-                this.playSynth(melodyNote, 'square', 0.3, 0.15);
-            }
+        this.step = 0;
+        this.nextNoteTime = this.ctx.currentTime;
+        // すでにタイマーが動いている場合は重複しないよう、一度クリアしてから開始
+        if (this.timerId) clearTimeout(this.timerId);
+        this.scheduleNote();
+    }
 
-            // --- 2. The Soft Pad (8-bit Triangle: Background Harmony) ---
-            // メロディを邪魔しないよう、コードは「拍の頭」に、かつ「非常に弱く」
+        scheduleNote() {
+        if (!this.initialized) return;
+
+        const tempo = 120;
+        const secondsPerBeat = 60 / tempo;
+
+        const chords = [
+            [220, 261.6, 329.6, 392.0],
+            [174.6, 220.0, 261.6, 329.6],
+            [130.8, 164.8, 196.0, 261.6],
+            [146.8, 196.0, 246.9, 311.1]
+        ];
+
+        const currentChord = chords[Math.floor(this.step / 4) % chords.length];
+
+        // isGameOver でない時だけ音を鳴らす
+        if (!isGameOver) {
             if (this.step % 4 === 0) {
-                // 三角波で、コードのルート音を優しく、低めに
-                this.playSynth(currentChord[0] * 1.5, 'triangle', 0.5, 0.05);
+                this.playSynth(currentChord[0] / 2, 'triangle', 1.0, 0.2);
             }
-
-            // --- 3. The Subtle Accent (8-bit High-Pitch: Bell-like) ---
-            // 拍の終わりに、かすかな「キラッ」とした音を添える
-            if (this.step % 4 === 3) {
-                this.playSynth(currentChord[2] * 2.5, 'square', 0.1, 0.05);
+            if (this.step % 4 === 0) {
+                currentChord.forEach(f => this.playSynth(f, 'square', 0.5, 0.05));
             }
-
-            this.step++;
-            this.nextNoteTime += secondsPerBeat;
-            this.timerId = setTimeout(() => this.scheduleNote(), secondsPerBeat * 1000);
-        }
-        playMove() { this.playSynth(400, 'sine', 0.05, 0.05); }
-        playRotate() { this.playSynth(600, 'sine', 0.1, 0.05); }
-        playDrop() { this.playSynth(200, 'sine', 0.1, 0.1); }
-       playHardDrop() {
-            // ハードドロップ：一瞬の鋭い「コンッ！」という音
-            this.playSynth(1800, 'square', 0.08, 0.4);
-        }
-        playLand() {
-            // 設置音：ライン消去のような、低く短い「ドンッ」という音
-            this.playSynth(30, 'square', 0.1, 0.4);
-            this.playSynth(120, 'square', 0.05, 0.3);
-        }
-         playHardDrop() {
-            // ハードドロップ：ライン消去よりもさらに重い「ドォーン！」という音
-            this.playSynth(60, 'square', 0.1, 0.5);
-            this.playSynth(120, 'square', 0.05, 0.3);
+            const melodyPattern = [0, 2, 3, 2, 0, 4, 3, 2]; 
+            const noteIdx = this.step % 8;
+            if (this.step % 2 === 0) {
+                const melodyNote = currentChord[melodyPattern[noteIdx] % 4] * 2;
+                this.playSynth(melodyNote, 'square', 0.3, 0.1);
+            }
         }
 
-        playGameOver() {
-            this.playSynth(100, 'sawtooth', 0.5, 0.5);
-            this.playSynth(50, 'square', 1.0, 0.5);
+        this.step++;
+        this.nextNoteTime += secondsPerBeat;
+        this.timerId = setTimeout(() => this.scheduleNote(), secondsPerBeat * 1000);
+    }
+
+    playImpact(vol = 0.5) { this.playSynth(60, 'sine', 0.4, vol); }
+    playClear(count) {
+        const baseFreqs = [220, 261, 329, 392, 523];
+        for(let i=0; i<count; i++) {
+            this.playSynth(baseFreqs[i % 5], 'sine', 0.5, 0.2);
         }
     }
+    playMove() { this.playSynth(400, 'sine', 0.05, 0.05); }
+    playRotate() { this.playSynth(600, 'sine', 0.1, 0.05); }
+    playDrop() { this.playSynth(200, 'sine', 0.1, 0.1); }
+    playHardDrop() { this.playSynth(100, 'square', 0.1, 0.3); }
+    playLand() { this.playSynth(50, 'square', 0.1, 0.3); }
+    playGameOver() {
+        this.playSynth(110, 'sawtooth', 0.5, 0.5);
+        this.playSynth(55, 'square', 1.0, 0.5);
+    }
+}
 
    window.audio = new AudioEngine(); 
 
@@ -779,11 +779,9 @@ function draw() {
     isGameOver = true;
     if (window.audio) {
         window.audio.playGameOver();
-        window.audio.stopBGM();
     }
     updateHighScore();
     document.getElementById('gameover-screen').style.display = 'flex';
-    document.getElementById('final-score').innerText = player.score;
 }
 
     function updateHighScore() {
@@ -815,7 +813,7 @@ function update(time = 0) {
         if (overdriveTimer) clearTimeout(overdriveTimer);
         overdriveTimer = setTimeout(() => {
             resetToTitle();
-        }, 1000); 
+        }, 3000); 
         
         // 演出中はゲームの動きを止める
         return; 
@@ -838,44 +836,57 @@ function update(time = 0) {
     requestAnimationFrame(update);
 }
 // --- 追加：リセット関数の修正 ---
+// --- resetToTitle の修正 ---
 function resetToTitle() {
+    // タイマーを止める
     if (overdriveTimer) {
         clearTimeout(overdriveTimer);
         overdriveTimer = null;
     }
 
-    isGameOver = true; 
+    // 1. まず、画面表示をリセットする（isGameOverはまだtrueのまま）
     document.getElementById('title-screen').style.display = 'flex';
     document.getElementById('gameover-screen').style.display = 'none';
     document.getElementById('overdrive-overlay').style.display = 'none';
     
+    // 2. データの初期化
     arena = Array.from({ length: ROW }, () => Array(COL).fill(0));
     player.score = 0; 
     player.level = 1; 
     player.combo = 0; 
     player.next = null;
     particles = [];
-    
     updateUI();
-    
-    isGameOver = false;
-    playerReset();
-    update();
+
+    // 3. ここでは isGameOver = false にしない！
+    // ゲームを再開するのは startGame が呼ばれた時だけにする
 }
 
-    window.startGame = function() {
-        audio.init();
-        arena = Array.from({ length: ROW }, () => Array(COL).fill(0));
-        player.score = 0; player.level = 1; player.combo = 0; player.next = null;
-        isGameOver = false;
-        particles = [];
-        document.getElementById('title-screen').style.display = 'none';
-        document.getElementById('gameover-screen').style.display = 'none';
-        updateUI();
-        playerReset();
-        update();
-    };
 
+window.startGame = async function() {
+    console.log("Starting game...");
+    
+    await window.audio.init();
+    isGameOver = false; 
+
+    // BGMをリセットして再開
+    window.audio.startBGM();
+
+    arena = Array.from({ length: ROW }, () => Array(COL).fill(0));
+    player.score = 0; 
+    player.level = 1; 
+    player.combo = 0; 
+    player.next = null;
+    particles = [];
+
+    document.getElementById('title-screen').style.display = 'none';
+    document.getElementById('gameover-screen').style.display = 'none';
+    document.getElementById('overdrive-overlay').style.display = 'none';
+
+    updateUI();
+    playerReset();
+    update();
+};
     document.addEventListener('keydown', event => {
         if (isGameOver) return;
         const key = event.key.toLowerCase();
