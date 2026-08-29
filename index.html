@@ -805,6 +805,10 @@ function resizeCanvas() {
     if (window.audio) {
         window.audio.playGameOver();
     }
+    
+    // 【追加】現在のスコアを結果画面のスコア欄に反映させる
+    document.getElementById('final-score').innerText = player.score;
+    
     updateHighScore();
     document.getElementById('gameover-screen').style.display = 'flex';
 }
