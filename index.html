@@ -15,31 +15,32 @@
     }
 
     body { 
-        margin: 0; 
-        background: #000; 
-        color: #fff; 
-        display: flex; 
-        justify-content: center; 
-        align-items: center; 
-        height: 100vh; 
-        width: 100vw; 
-        overflow: hidden; 
-        font-family: 'Orbitron', sans-serif;
-        touch-action: none;
-        background: radial-gradient(circle, #001a1a 0%, #050505 100%);
-    }
+    margin: 0; 
+    background: #000; 
+    color: #fff; 
+    display: flex; 
+    justify-content: center; 
+    /* align-items: center; を削除（これで上下中央固定を解除） */
+    min-height: 100vh; /* height ではなく min-height に変更 */
+    width: 100vw; 
+    overflow: hidden; 
+    font-family: 'Orbitron', sans-serif;
+    touch-action: none;
+    background: radial-gradient(circle, #001a1a 0%, #050505 100%);
+}
 
     #game-container { 
-        position: relative; 
-        display: flex; 
-        flex-direction: column; 
-        align-items: center; 
-        width: 100%; 
-        height: 100%;
-        background: linear-gradient(rgba(0, 255, 255, 0.05) 1px, transparent 1px),
-                    linear-gradient(90deg, rgba(0, 255, 255, 0.05) 1px, transparent 1px);
-        background-size: 50px 50px;
-    }
+    position: relative; 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    width: 100%; 
+    /* height: 100%; を削除し、中身に合わせて広がるようにする */
+    min-height: 100%; 
+    background: linear-gradient(rgba(0, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 50px 50px;
+}
 
     #ui-container { 
     display: flex; 
