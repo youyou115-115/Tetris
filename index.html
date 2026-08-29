@@ -702,38 +702,47 @@ function draw() {
 
 // script内のplayerDrop関数を修正
     function playerDrop() {
-        player.pos.y++;
-        
-        // 1. まず、プレイヤーが画面外（y < 0）に突き抜けたかチェック
-        // これが「枠を超えた」判定です
-        const isOut = player.pos.y < 0 || player.matrix.some((row, y) => 
-            row.some(value => value !== 0 && (player.pos.y + y) < 0)
-        );
-
-        if (isOut) {
-            gameOver();
-            return; // ここで終了
-        }
-
-        // 2. 衝突判定（着地判定）
-        if (collide(arena, player)) {
-            player.pos.y--; // 衝突した位置に戻す
-            merge(arena, player); // 盤面に固定
-            arenaSweep(); // ライン消去
-
-              // 【追加】着地した瞬間に音を鳴らす
-            audio.playLand(); 
-            
-            // 着地した結果、一番上の行にブロックが残った場合もゲームオーバー
-            if (arena[0].some(val => val !== 0)) {
-                gameOver();
-            } else {
-                playerReset();
+    player.pos.y++;
+    
+    // 1. 【修正】「次に落ちてくるミノ」が、一番上の行（0行目）に衝突するかチェック
+    // player.pos.y が 0 のとき、ミノのパーツが 0行目にあるかを確認
+    let willCollideAtTop = false;
+    for (let y = 0; y < player.matrix.length; y++) {
+        for (let x = 0; x < player.matrix[y].length; x++) {
+            if (player.matrix[y][x] !== 0) {
+                // ミノのパーツの座標が、盤面の最上段(y=0)に重なる場合
+                if (player.pos.y + y <= 0) {
+                    willCollideAtTop = true;
+                    break;
+                }
             }
         }
-        
-        dropCounter = 0;
+        if (willCollideAtTop) break;
     }
+
+    if (willCollideAtTop) {
+        gameOver();
+        return;
+    }
+
+    // 2. 衝突判定（着地判定）
+    if (collide(arena, player)) {
+        player.pos.y--; 
+        merge(arena, player); 
+        arenaSweep(); 
+
+        audio.playLand(); 
+        
+        // 着地した結果、一番上の行にブロックが残った場合もゲームオーバー
+        if (arena[0].some(val => val !== 0)) {
+            gameOver();
+        } else {
+            playerReset();
+        }
+    }
+    
+    dropCounter = 0;
+}
     function playerMove(dir) {
     player.isBoostMode = false; // 【追加】操作したらブースト解除
     player.pos.x += dir;
@@ -783,30 +792,32 @@ function draw() {
         document.getElementById('high-score').innerText = localStorage.getItem('tetris_high_score');
     }
 
-    function update(time = 0) {
+function update(time = 0) {
     if (isGameOver) return;
     const deltaTime = time - lastTime;
     lastTime = time;
     dropCounter += deltaTime;
 
-    // 1. 速度計算（10msを限界値とする）
+    // 1. 速度計算（限界なし：レベルが上がるごとに20msずつ加速）
     const currentInterval = player.isBoostMode 
         ? 100 
-        : (1000 - (player.level * 10));     
+        : (1000 - (player.level * 20));     
+    
     const overdriveOverlay = document.getElementById('overdrive-overlay');
     
     // --- 【修正】オーバーロード演出の判定 ---
-    // 速度が 10ms を切った瞬間に、演出を開始して即座にタイトルへ
-    if (currentInterval <= 0) { 
+    // 速度が 20ms 以下になったら、崩壊のカウントダウンを開始する
+    // (0にすると、ゲームが物理的に止まる前にゲームオーバー判定に負けるため)
+    if (currentInterval <= 20) { 
         if (overdriveOverlay) overdriveOverlay.style.display = 'flex';
         
-        // 演出を見せるために、ごく短い時間（例：0.5秒）だけ表示してタイトルへ
-        // もし「演出なしで即タイトル」なら setTimeout なしで resetToTitle() を呼ぶ
-        setTimeout(() => {
+        // 1秒間だけ「OVERDRIVE!!」を見せてからタイトルへ
+        if (overdriveTimer) clearTimeout(overdriveTimer);
+        overdriveTimer = setTimeout(() => {
             resetToTitle();
-        }, 1000); // 0.5秒だけ「OVERDRIVE!!」を見せてから崩壊
+        }, 1000); 
         
-        // 二重に呼ばれないように、このフレームでの処理を止める
+        // 演出中はゲームの動きを止める
         return; 
     } else {
         if (overdriveOverlay) overdriveOverlay.style.display = 'none';
