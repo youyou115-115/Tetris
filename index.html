@@ -331,8 +331,8 @@ canvas {
     const nextCtx = nextCanvas.getContext('2d');
 
     const ROW = 20;
-    const COL = 10;
-    const SQ = 30;
+const COL = 10;
+let SQ = 30;
     canvas.width = COL * SQ;
     canvas.height = ROW * SQ;
 
@@ -594,6 +594,28 @@ function draw() {
         p.update(); p.draw(ctx);
         if (p.life <= 0) particles.splice(index, 1);
     });
+}
+
+function resizeCanvas() {
+    const container = document.querySelector('#game-container');
+    // コンテナの現在の幅を取得（CSSのwidth: 100%が適用された後の幅）
+    const availableWidth = container.clientWidth * 0.9; // 左右に少し余白(5%ずつ)を作る
+    
+    // テトリスのアスペクト比 (1:2) に基づいて高さを計算
+    const newWidth = availableWidth;
+    const newHeight = availableWidth * 2;
+
+    // Canvasの内部解像度（描画の細かさ）を更新
+    canvas.width = newWidth;
+    canvas.height = newHeight;
+
+    // 1マスのサイズ(SQ)を、新しいCanvasの幅に基づいて再計算
+    // これにより、どんな画面サイズでも「10列」がピッタリ収まる
+    SQ = newWidth / COL;
+
+    // 次のプレビュー用Canvasもリサイズ
+    nextCanvas.width = 60 * (newWidth / 300); 
+    nextCanvas.height = 60 * (newWidth / 300);
 }
 
     function drawNext() {
@@ -881,6 +903,7 @@ window.startGame = async function() {
     player.combo = 0; 
     player.next = null;
     particles = [];
+    resizeCanvas();
 
     document.getElementById('title-screen').style.display = 'none';
     document.getElementById('gameover-screen').style.display = 'none';
@@ -1023,6 +1046,11 @@ document.addEventListener('DOMContentLoaded', () => {
         startBtn.addEventListener('touchstart', triggerStart, {passive: false});
     }
 });
+
+// 画面が回転したり、サイズが変わったりした時に対応
+window.addEventListener('resize', resizeCanvas);
+// 初期読み込み時にも実行
+window.addEventListener('load', resizeCanvas);
     
 </script>
 </body>
