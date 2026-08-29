@@ -93,8 +93,9 @@ canvas {
     border: 3px solid rgba(0, 255, 255, 0.5);
     box-shadow: 0 0 20px rgba(0, 255, 255, 0.4), inset 0 0 15px rgba(0, 255, 255, 0.2);
     background: #050505;
-    width: 100%; /* 親要素の幅（max-width: 450px）に合わせる */
-    height: auto; /* アスペクト比を維持 */
+    width: 100%;      /* 親要素の幅いっぱい */
+    max-width: 400px; /* PCでの巨大化防止 */
+    height: auto;     /* アスペクト比を維持 */
     display: block;
 }
 
